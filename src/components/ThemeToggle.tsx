@@ -35,21 +35,21 @@ export const ThemeToggle = () => {
       >
         <DropdownMenuItem
           onClick={() => setTheme('light')}
-          className="text-foreground hover:text-green-400"
+          className="text-foreground hover:text-green-400 cursor-pointer"
         >
           <Sun className="mr-2 h-4 w-4" />
           Light
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => setTheme('dark')}
-          className="text-foreground hover:text-green-400"
+          className="text-foreground hover:text-green-400 cursor-pointer"
         >
           <Moon className="mr-2 h-4 w-4" />
           Dark
         </DropdownMenuItem>
         <DropdownMenuItem
           onClick={() => setTheme('system')}
-          className="text-foreground hover:text-green-400"
+          className="text-foreground hover:text-green-400 cursor-pointer"
         >
           <Laptop className="mr-2 h-4 w-4" />
           System

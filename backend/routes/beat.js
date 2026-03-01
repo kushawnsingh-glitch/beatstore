@@ -58,8 +58,8 @@ const upload = multer({
     } else {
       cb(
         new Error(
-          'Invalid file type. Only JPEG, PNG, WEBP, MP3, and ZIP are allowed.'
-        )
+          'Invalid file type. Only JPEG, PNG, WEBP, MP3, and ZIP are allowed.',
+        ),
       );
     }
   },
@@ -185,7 +185,7 @@ router.post('/beat', async (req, res) => {
         license.description &&
         (license.type === 'Basic' ||
           license.type === 'Premium' ||
-          license.s3_file_url)
+          license.s3_file_url),
     );
 
     if (!hasValidLicenses) {
@@ -236,7 +236,7 @@ router.put('/beat', async (req, res) => {
       'PUT /beat called with beatId:',
       beatId,
       'body:',
-      JSON.stringify(req.body, null, 2)
+      JSON.stringify(req.body, null, 2),
     );
 
     if (!beatId || !mongoose.Types.ObjectId.isValid(beatId)) {
@@ -290,7 +290,7 @@ router.put('/beat', async (req, res) => {
         license.description &&
         (license.type === 'Basic' ||
           license.type === 'Premium' ||
-          license.s3_file_url)
+          license.s3_file_url),
     );
 
     if (!hasValidLicenses) {
@@ -324,7 +324,7 @@ router.put('/beat', async (req, res) => {
     const updatedBeat = await Beat.findByIdAndUpdate(
       beatId,
       { $set: updateData },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     );
 
     if (!updatedBeat) {
@@ -391,4 +391,58 @@ router.get('/beat', async (req, res) => {
   }
 });
 
+// / ************************************************/
+// / UPDATE BEAT PRICES 💸💸💸
+// / ************************************************/
+// PUT /api/beat/bulk-update-prices
+router.put('/bulk-update-prices', async (req, res) => {
+  try {
+    const { prices } = req.body; // expect { Basic: 34.99, Premium: 49.99, ... }
+
+    if (!prices || typeof prices !== 'object') {
+      return res.status(400).json({ error: 'prices object is required' });
+    }
+
+    const validTypes = [
+      'Basic',
+      'Premium',
+      'Professional',
+      'Legacy',
+      'Exclusive',
+    ];
+    const updateOps = [];
+
+    for (const [type, newPrice] of Object.entries(prices)) {
+      if (!validTypes.includes(type)) continue;
+      if (typeof newPrice !== 'number' || newPrice < 0) {
+        return res.status(400).json({ error: `Invalid price for ${type}` });
+      }
+
+      updateOps.push({
+        updateMany: {
+          filter: { 'licenses.type': type },
+          update: { $set: { 'licenses.$[elem].price': newPrice } },
+          arrayFilters: [{ 'elem.type': type }],
+        },
+      });
+    }
+
+    if (updateOps.length === 0) {
+      return res.status(400).json({ error: 'No valid license types provided' });
+    }
+
+    // Execute bulk write (more efficient than many separate updateMany calls)
+    const result = await Beat.bulkWrite(updateOps, { ordered: false });
+
+    res.json({
+      message: 'Prices updated successfully',
+      matched: result.matchedCount,
+      modified: result.modifiedCount,
+      upserted: result.upsertedCount,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error during bulk update' });
+  }
+});
 export default router;

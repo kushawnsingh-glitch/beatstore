@@ -23,6 +23,7 @@ import { Toaster } from 'react-hot-toast';
 import { LicenseProvider } from './contexts/LicenseContext';
 import { BeatsProvider } from './contexts/BeatsContext';
 import { BeatPackProvider } from './contexts/BeatPackContext';
+import { SamplePackProvider } from './contexts/SamplePackContext';
 import { OrdersProvider } from './contexts/OrdersContext';
 import Billing from '../pages/Billing';
 import TermsOfUse from '../pages/TermsOfUse';
@@ -36,15 +37,18 @@ import NewsLetterSignUp from './components/NewsLetterSignUp';
 import BlogPage from '../pages/BlogPage';
 import BlogPostWrapper from '../pages/BlogPost';
 import Login from '../pages/Login';
-import Pack from '../pages/Packs';
+import Pack from '../pages/Packs/Packs';
+import BeatPack from '../pages/Packs/BeatPacks';
 import AdminBeats from '../pages/dashboard/AdminBeats';
 import AdminBeatPacks from '../pages/dashboard/AdminBeatPacks';
 import AdminSingleBeat from '../pages/dashboard/AdminSingleBeat';
 import AdminUploadBeats from '../pages/dashboard/AdminUploadBeat';
+import AdminBeatPricing from '../pages/dashboard/AdminBeatPricing';
 import Dashboard from '../pages/dashboard/Dashboard';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import SinglePack from '../pages/SinglePack';
+import SingleBeatPack from '../pages/Packs/SingleBeatPack';
 import Maintenance from '../pages/Maintenance';
 import FaqsPage from '../pages/FaqsPage';
 import Galaxy from './components/ui/ReactBits/Galaxy';
@@ -101,7 +105,8 @@ function AppContent() {
                 {/* Beats */}
                 <Route path="/beats" element={<Beats />} />
                 {/* Packs*/}
-                <Route path="/packs" element={<Pack />} />
+                <Route path="/loop-packs" element={<Pack />} />
+                <Route path="/beat-packs" element={<BeatPack />} />
                 <Route path="/licenses" element={<LicensePage />} />
                 <Route path="/billing" element={<Billing />} />
                 <Route path="/terms-of-service" element={<TermsOfUse />} />
@@ -126,6 +131,7 @@ function AppContent() {
                 <Route path="/download" element={<DownloadPage />} />
                 <Route path="/beat" element={<SingleBeatPage />} />
                 <Route path="/pack" element={<SinglePack />} />
+                <Route path="/beat-pack" element={<SingleBeatPack />} />
                 <Route path="/newsletter" element={<NewsLetterSignUp />} />
                 <Route path="/faqs" element={<FaqsPage />} />
                 {/* Login */}
@@ -141,6 +147,10 @@ function AppContent() {
               <Route path="/admin/packs" element={<AdminBeatPacks />} />
               <Route path="/admin/beat" element={<AdminSingleBeat />} />
               <Route path="/admin/upload-beat" element={<AdminUploadBeats />} />
+              <Route
+                path="/admin/set-beat-pricing"
+                element={<AdminBeatPricing />}
+              />
             </Route>
           </>
         </Routes>
@@ -159,15 +169,17 @@ function App() {
         <OrdersProvider>
           <BeatsProvider>
             <BeatPackProvider>
-              <PlayerProvider>
-                <LicenseProvider>
-                  <AuthProvider>
-                    <Router>
-                      <AppContent />
-                    </Router>
-                  </AuthProvider>
-                </LicenseProvider>
-              </PlayerProvider>
+              <SamplePackProvider>
+                <PlayerProvider>
+                  <LicenseProvider>
+                    <AuthProvider>
+                      <Router>
+                        <AppContent />
+                      </Router>
+                    </AuthProvider>
+                  </LicenseProvider>
+                </PlayerProvider>
+              </SamplePackProvider>
             </BeatPackProvider>
           </BeatsProvider>
         </OrdersProvider>

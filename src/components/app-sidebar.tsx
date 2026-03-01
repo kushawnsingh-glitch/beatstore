@@ -5,7 +5,6 @@ import {
   IconDashboard,
   IconFileAi,
   IconFileDescription,
-  IconHelp,
   IconListDetails,
   IconSearch,
   IconSettings,
@@ -14,6 +13,7 @@ import {
   IconPackageImport,
   IconHome,
   IconUpload,
+  IconReceipt2,
 } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 import { NavDocuments } from '@/components/nav-documents';
@@ -135,9 +135,9 @@ const data = {
       icon: IconSettings,
     },
     {
-      title: 'Get Help',
-      url: '#',
-      icon: IconHelp,
+      title: 'Beat Pricing',
+      url: '/admin/set-beat-pricing',
+      icon: IconReceipt2,
     },
     {
       title: 'Search',

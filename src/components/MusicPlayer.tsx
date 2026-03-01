@@ -190,7 +190,10 @@ const MusicPlayer = () => {
     }
     // --- GOOGLE ANALYTICS 4 (GA4) EVENT TRACKING END ---
     if (beat.type === 'Beat') navigate(`/beat?beatId=${beat.id}`);
+    else if (beat.title.includes('Beat Pack'))
+      navigate(`/beat-pack?packId=${beat.id}`);
     else navigate(`/pack?packId=${beat.id}`);
+
     // Re-fetch the main beat when a related beat is clicked to update the page
 
     // Consider adding a scroll to top here for a better UX

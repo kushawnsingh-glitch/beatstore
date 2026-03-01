@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { Pack, Track } from '../types';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { useCart } from '@/contexts/cart-context';
-import { useBeatPacks } from '@/contexts/BeatPackContext';
+import { useSamplePacks } from '@/contexts/SamplePackContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -66,7 +66,7 @@ const PackList = () => {
     // totalPacks,
     // totalPages,
     // currentPage,
-  } = useBeatPacks();
+  } = useSamplePacks();
   // Handle pagination and search
   useEffect(() => {
     const page = parseInt(searchParams.get('page') || '1');

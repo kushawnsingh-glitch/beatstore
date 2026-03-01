@@ -28,6 +28,7 @@ const YoutubeSection = () => {
               className="w-32 h-32 rounded-full pointer-events-none"
               src={BirdieLogo}
               alt="bidie logo"
+              loading="lazy"
             />
           </div>
           {/* Subscriber Count */}

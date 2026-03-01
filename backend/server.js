@@ -17,6 +17,7 @@ import Order from './models/Order.js';
 import Customer from './models/Customer.js';
 import Coupon from './models/Coupon.js';
 import Pack from './models/Pack.js';
+import BeatPack from './models/BeatPack.js';
 import paypal from '@paypal/checkout-server-sdk';
 import Stripe from 'stripe';
 import crypto from 'crypto';
@@ -1789,7 +1790,94 @@ app.get('/api/packs', async (req, res) => {
   }
 });
 
-// get single beat
+// Get ALL BEAT PACKS 🔊
+app.get('/api/beatpacks', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 6;
+    let search = req.query.search || '';
+    const skip = (page - 1) * limit;
+
+    let query = { available: true };
+    if (search) {
+      query = {
+        available: true,
+        $or: [
+          { title: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+          { tags: { $regex: search, $options: 'i' } },
+        ],
+      };
+    }
+
+    const beatPacksList = await BeatPack.find(query)
+      .sort({ created_at: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Sign URLs for each pack
+    for (const pack of beatPacksList) {
+      const mp3Key = pack.s3_mp3_url.startsWith('s3://')
+        ? pack.s3_mp3_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
+        : pack.s3_mp3_url;
+      const imageKey = pack.s3_image_url?.startsWith('s3://')
+        ? pack.s3_image_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
+        : pack.s3_image_url;
+      const fileKey = pack.s3_file_url?.startsWith('s3://')
+        ? pack.s3_file_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
+        : pack.s3_file_url;
+
+      pack.s3_mp3_url = await getPresignedUrl(mp3Key, 3600 * 24 * 7); // 7 days
+      pack.s3_image_url = imageKey
+        ? await getPresignedUrl(imageKey, 3600 * 24 * 7)
+        : null;
+      for (const license of pack.licenses) {
+        license.s3_file_url = null; // Hide download URLs
+      }
+    }
+    const totalPacks = await BeatPack.countDocuments(query);
+    const totalPages = Math.ceil(totalPacks / limit);
+    res.json({ packs: beatPacksList, page, totalPages, totalPacks });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// SINGLE BEAT PACK
+app.get('/beat-pack', async (req, res) => {
+  const { packId } = req.query;
+  try {
+    const retrievedPack = await BeatPack.findById(packId).lean();
+    if (!retrievedPack)
+      return res.status(404).json({ error: 'Beat pack not found' });
+
+    // Reuse your URL logic
+    const keys = {
+      mp3: retrievedPack.s3_mp3_url.replace(
+        `s3://${process.env.AWS_S3_BUCKET}/`,
+        ''
+      ),
+      image: retrievedPack.s3_image_url?.replace(
+        `s3://${process.env.AWS_S3_BUCKET}/`,
+        ''
+      ),
+    };
+
+    retrievedPack.s3_mp3_url = await getPresignedUrl(keys.mp3, 604800);
+    retrievedPack.s3_image_url = keys.image
+      ? await getPresignedUrl(keys.image, 604800)
+      : null;
+
+    retrievedPack.licenses.forEach((l) => (l.s3_file_url = null));
+
+    res.json(retrievedPack);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve beat pack' });
+  }
+});
+
+// get single pack
 // curl localhost:3001/pack?packId=:id
 app.get('/pack', async (req, res) => {
   const { packId } = req.query;

@@ -128,7 +128,7 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
       const toastId = toast.loading('Starting download...');
 
       const response = await axios.get(
-        `${import.meta.env.VITE_API_BASE_URL_BACKEND}/api/download/${track.id}`
+        `${import.meta.env.VITE_API_BASE_URL_BACKEND}/api/download/${track.id}`,
       );
       const { downloadUrl } = response.data;
 
@@ -308,7 +308,7 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
           }
           className={isPreviousDisabled ? 'opacity-50 cursor-not-allowed' : ''}
         />
-      </PaginationItem>
+      </PaginationItem>,
     );
 
     // First page
@@ -316,13 +316,13 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
       items.push(
         <PaginationItem key="first">
           <PaginationLink onClick={() => handlePageChange(1)}>1</PaginationLink>
-        </PaginationItem>
+        </PaginationItem>,
       );
       if (startPage > 2) {
         items.push(
           <PaginationItem key="start-ellipsis">
             <PaginationEllipsis />
-          </PaginationItem>
+          </PaginationItem>,
         );
       }
     }
@@ -337,7 +337,7 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
           >
             {page}
           </PaginationLink>
-        </PaginationItem>
+        </PaginationItem>,
       );
     }
 
@@ -347,7 +347,7 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
         items.push(
           <PaginationItem key="end-ellipsis">
             <PaginationEllipsis />
-          </PaginationItem>
+          </PaginationItem>,
         );
       }
       items.push(
@@ -355,7 +355,7 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
           <PaginationLink onClick={() => handlePageChange(totalPages)}>
             {totalPages}
           </PaginationLink>
-        </PaginationItem>
+        </PaginationItem>,
       );
     }
 
@@ -369,7 +369,7 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
           }
           className={isNextDisabled ? 'opacity-50 cursor-not-allowed' : ''}
         />
-      </PaginationItem>
+      </PaginationItem>,
     );
 
     return items;
@@ -420,7 +420,7 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
             </button>
             <button
               onClick={() => handleCardClick(track)}
-              className="min-w-0 !p-0 !m-0 text-start text-foreground hover:!text-green-400 !duration-200 !transition-colors !border-none !outline-none hover:!outline-none hover:!border-none !bg-transparent hover:!bg-transparent"
+              className="min-w-0 !p-0 !m-0 text-start text-foreground hover:dark:!text-green-400 !duration-200 !transition-colors !border-none !outline-none hover:!outline-none hover:!border-none !bg-transparent hover:!bg-transparent"
             >
               <div className={`font-medium truncate `}>{track.title}</div>
               <div className=" text-sm truncate font-medium">

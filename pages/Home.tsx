@@ -10,6 +10,7 @@ import { Helmet } from 'react-helmet'; // Import React Helmet for SEO
 import { useEffect, useState } from 'react';
 import YoutubeSection from '@/components/YouTube';
 import MailerLitePopUp from '../src/components/MailerLitePopup';
+import BeatPackList from '@/components/PacksComponents/BeatPackList';
 // import PackList from '@/components/PackList';
 const Home = ({ size }: { size: string }) => {
   // document.title = `Birdie Bands | Home`;
@@ -98,6 +99,7 @@ const Home = ({ size }: { size: string }) => {
         // searchTerm={searchTerm}
         // setSearchTerm={setSearchTerm}
       />
+      <BeatPackList isHomePage={true} />
       <Artists size={size} />
       {/* <PackList /> */}
       <Licenses />

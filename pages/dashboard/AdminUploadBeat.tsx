@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { parseBlob } from 'music-metadata'; // <-- Now from the main package
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
@@ -56,6 +57,24 @@ const AdminCreateBeat = () => {
   const [proFile, setProFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [tagsInput, setTagsInput] = useState('');
+  const [licensePrices, setLicensePrices] = useState({
+    Basic: 29.99,
+    Premium: 39.99,
+    Professional: 59.99,
+    Legacy: 79.99,
+    Exclusive: 299.99,
+  });
+
+  const handlePriceChange =
+    (type: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = parseFloat(e.target.value);
+      if (!isNaN(value) && value >= 0) {
+        setLicensePrices((prev) => ({
+          ...prev,
+          [type]: value,
+        }));
+      }
+    };
 
   // Generate key options
   const majorKeys = [
@@ -75,6 +94,7 @@ const AdminCreateBeat = () => {
   const allKeys = [
     ...majorKeys.map((k) => `${k} Major`),
     ...majorKeys.map((k) => `${k} Minor`),
+    `N/A`,
   ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,7 +137,7 @@ const AdminCreateBeat = () => {
         {
           method: 'POST',
           body: formData,
-        }
+        },
       );
 
       if (!response.ok) {
@@ -158,21 +178,21 @@ const AdminCreateBeat = () => {
           const taggedUrl = await uploadFile(
             taggedFile,
             'tagged_mp3',
-            formData.title
+            formData.title,
           );
           if (!taggedUrl) throw new Error('Tagged MP3 upload failed');
 
           const basicUrl = await uploadFile(
             basicFile,
             'basic_mp3',
-            formData.title
+            formData.title,
           );
           if (!basicUrl) throw new Error('Basic MP3 upload failed');
 
           const premiumUrl = await uploadFile(
             premiumFile,
             'premium_zip',
-            formData.title
+            formData.title,
           );
           if (!premiumUrl) throw new Error('Premium MP3 upload failed');
 
@@ -182,7 +202,7 @@ const AdminCreateBeat = () => {
           const licenses = [
             {
               type: 'Basic',
-              price: 29.99,
+              price: licensePrices.Basic,
               currency: 'USD',
               description:
                 'Basic License includes MP3 format, non-exclusive rights, distribution up to 2,500 copies, 1 music video, and producer tag removal.',
@@ -199,7 +219,7 @@ const AdminCreateBeat = () => {
             },
             {
               type: 'Premium',
-              price: 39.99,
+              price: licensePrices.Premium,
               currency: 'USD',
               description:
                 'Premium License includes WAV + MP3 format, expanded distribution rights, live performances, and limited radio rights.',
@@ -217,7 +237,7 @@ const AdminCreateBeat = () => {
             },
             {
               type: 'Professional',
-              price: 99.99,
+              price: licensePrices.Professional,
               currency: 'USD',
               description:
                 'Professional License includes stems, large-scale streaming capacity, live and radio rights, and distribution up to 10,000 units.',
@@ -235,7 +255,7 @@ const AdminCreateBeat = () => {
             },
             {
               type: 'Legacy',
-              price: 149.99,
+              price: licensePrices.Legacy,
               currency: 'USD',
               description:
                 'Legacy License offers unrestricted use across all platforms and unlimited media coverage.',
@@ -253,7 +273,7 @@ const AdminCreateBeat = () => {
             },
             {
               type: 'Exclusive',
-              price: 999.99,
+              price: licensePrices.Exclusive,
               currency: 'USD',
               description:
                 'Exclusive License grants complete ownership, full monetization, and contractual rights for global usage.',
@@ -283,7 +303,7 @@ const AdminCreateBeat = () => {
 
           console.log(
             'Submitting beat data:',
-            JSON.stringify(submitData, null, 2)
+            JSON.stringify(submitData, null, 2),
           );
           const response = await fetch(
             `${import.meta.env.VITE_API_BASE_URL_BACKEND}/api/beat`,
@@ -291,7 +311,7 @@ const AdminCreateBeat = () => {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(submitData),
-            }
+            },
           );
 
           if (!response.ok) {
@@ -304,7 +324,7 @@ const AdminCreateBeat = () => {
           loading: `Uploading ${formData.title}...`,
           success: `Successfully uploaded ${formData.title}!`,
           error: (err) => err.message,
-        }
+        },
       )
       .then(() => {
         setUploading(false);
@@ -334,14 +354,62 @@ const AdminCreateBeat = () => {
     }
   };
 
-  const handleTaggedDrop = (files: File[]) => {
-    if (files.length > 0) {
-      const file = files[0];
-      if (file.type !== 'audio/mpeg') {
-        toast.error('Please select a valid MP3 file.');
-        return;
+  // const handleTaggedDrop = (files: File[]) => {
+  //   if (files.length > 0) {
+  //     const file = files[0];
+  //     if (file.type !== 'audio/mpeg') {
+  //       toast.error('Please select a valid MP3 file.');
+  //       return;
+  //     }
+  //     setTaggedFile(file);
+  //   }
+  // };
+
+  const handleTaggedDrop = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    const file = files[0];
+    if (file.type !== 'audio/mpeg') {
+      toast.error('Please select a valid MP3 file.');
+      return;
+    }
+
+    setTaggedFile(file);
+
+    try {
+      const metadata = await parseBlob(file);
+
+      // Duration in seconds (float)
+      const duration = metadata.format.duration;
+
+      if (duration) {
+        const minutes = Math.floor(duration / 60);
+        const seconds = Math.floor(duration % 60);
+        const formatted = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+        setFormData((prev) => ({
+          ...prev,
+          duration: formatted,
+        }));
+
+        toast.success(`Duration auto-detected: ${formatted}`);
+      } else {
+        toast.error('Could not detect duration from this MP3.');
       }
-      setTaggedFile(file);
+
+      // Bonus: Auto-fill BPM if embedded in tags (common in produced beats)
+      const bpm = metadata.common.bpm;
+      if (bpm && !isNaN(bpm)) {
+        setFormData((prev) => ({
+          ...prev,
+          bpm: Math.round(bpm),
+        }));
+        toast.success(`BPM auto-detected: ${Math.round(bpm)}`);
+      }
+    } catch (error) {
+      console.error('Failed to parse metadata:', error);
+      toast.error('Failed to read MP3 metadata (file may be corrupted).');
+      // Don't block the upload – user can manually enter duration
     }
   };
 
@@ -675,6 +743,31 @@ const AdminCreateBeat = () => {
                 onChange={handleInputChange}
                 placeholder="https://www.youtube.com/watch?v=..."
               />
+            </div>
+
+            <div className="space-y-6 border-t pt-6">
+              <h2 className="text-xl font-semibold">License Pricing (USD)</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {Object.entries(licensePrices).map(([type, price]) => (
+                  <div key={type} className="space-y-2">
+                    <Label htmlFor={`price-${type}`} className="font-medium">
+                      {type}
+                    </Label>
+                    <div className="flex items-center">
+                      <span className="text-gray-500 mr-2">$</span>
+                      <Input
+                        id={`price-${type}`}
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={price}
+                        onChange={handlePriceChange(type)}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Available */}

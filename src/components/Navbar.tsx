@@ -61,6 +61,22 @@ const Navbar = () => {
               </picture>
             </button>
             <button className="min-w-2xl !flex items-center justify-center  !bg-transparent hover:!bg-transparent  !p-0 hover:!p-0 !m-0 hover:!m-0">
+              Buy 1 Beat Pack Get 1 Beat Pack Free.{' '}
+              <picture className="pointer-events-none">
+                <source
+                  srcSet="https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.webp"
+                  type="image/webp"
+                />
+                <img
+                  src="https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.gif"
+                  alt="🔥"
+                  width="24"
+                  height="24"
+                  className="ml-2"
+                />
+              </picture>
+            </button>
+            <button className="min-w-2xl !flex items-center justify-center  !bg-transparent hover:!bg-transparent  !p-0 hover:!p-0 !m-0 hover:!m-0">
               Buy 1 Get 1 Free On All Leases. Excludes Exclusive Licenses.{' '}
               <picture className="pointer-events-none">
                 <source

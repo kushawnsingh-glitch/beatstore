@@ -1,6 +1,7 @@
 import { Helmet } from 'react-helmet'; // Added for SEO
-import BirdieLogo1 from '../src/Images/cropped.png';
-import PackList from '../src/components/PackList';
+import BirdieLogo1 from '@/Images/cropped.png';
+import PackList from '@/components/PackList';
+
 const Packs = () => {
   document.title = `Birdie Bands | Sample Loop Packs`;
 

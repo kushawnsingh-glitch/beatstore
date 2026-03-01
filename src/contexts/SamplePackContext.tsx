@@ -8,7 +8,7 @@ import React, {
 import axios from 'axios';
 import type { Pack } from '../types';
 
-interface BeatPackContextType {
+interface SamplePackContextType {
   packs: Pack[];
   isPacksLoaded: boolean;
   fetchPacks: (page?: number, limit?: number, search?: string) => Promise<void>;
@@ -17,11 +17,11 @@ interface BeatPackContextType {
   currentPage: number;
 }
 
-const BeatPackContext = createContext<BeatPackContextType | undefined>(
+const SamplePackContext = createContext<SamplePackContextType | undefined>(
   undefined
 );
 
-export const BeatPackProvider: React.FC<{ children: React.ReactNode }> = ({
+export const SamplePackProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [packs, setPacks] = useState<Pack[]>([]);
@@ -59,7 +59,7 @@ export const BeatPackProvider: React.FC<{ children: React.ReactNode }> = ({
 
     try {
       const response = await axios.get(
-        `${import.meta.env.VITE_API_BASE_URL_BACKEND}/api/beatpacks`,
+        `${import.meta.env.VITE_API_BASE_URL_BACKEND}/api/packs`,
         {
           params: { page, limit, search },
         }
@@ -89,7 +89,7 @@ export const BeatPackProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   return (
-    <BeatPackContext.Provider
+    <SamplePackContext.Provider
       value={{
         packs,
         isPacksLoaded,
@@ -100,14 +100,14 @@ export const BeatPackProvider: React.FC<{ children: React.ReactNode }> = ({
       }}
     >
       {children}
-    </BeatPackContext.Provider>
+    </SamplePackContext.Provider>
   );
 };
 
-export const useBeatPacks = () => {
-  const context = useContext(BeatPackContext);
+export const useSamplePacks = () => {
+  const context = useContext(SamplePackContext);
   if (!context) {
-    throw new Error('useBeatPacks must be used within a BeatPackProvider');
+    throw new Error('useSamplePacks must be used within a SamplePackProvider');
   }
   return context;
 };
