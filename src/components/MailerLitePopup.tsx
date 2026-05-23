@@ -121,7 +121,7 @@ const MailerLitePopUp = () => {
               theme === 'dark' ? 'text-gray-300 ' : 'text-gray-600 '
             }`}
           >
-            Get Exclusive Access to Birdie Bands' Latest Releases
+            Get Exclusive Access to KUSHAWN' Latest Releases
             <br />
             Don’t miss out
           </DialogDescription>
@@ -174,7 +174,7 @@ const MailerLitePopUp = () => {
                 theme === 'dark' ? 'text-gray-300 ' : 'text-gray-600 '
               }`}
             >
-              I agree to receive newsletters and updates from Birdie Bands
+              I agree to receive newsletters and updates from KUSHAWN
             </label>
           </div>
           <label

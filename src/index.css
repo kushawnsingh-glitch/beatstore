@@ -3,8 +3,32 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── Kushawn brand tokens ── */
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --forest:    #2D6A4F;
+  --forest-lt: #40916C;
+  --forest-dk: #1B4332;
+}
+
+/* ── Playfair Display for headings ── */
+h1, h2, h3 {
+  font-family: 'Playfair Display', serif;
+}
+
+/* ── Section label style (from kushawn.com) ── */
+.section-label {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--forest-lt);
+  margin-bottom: 12px;
+  font-family: 'Inter', sans-serif;
+}
+
+:root {
+  font-family: 'Inter', system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
 
@@ -106,6 +130,14 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+/* ── Override Tailwind greens with forest green palette ── */
+@theme {
+  --color-green-300: #52B788;
+  --color-green-400: #40916C;
+  --color-green-500: #2D6A4F;
+  --color-green-600: #1B4332;
 }
 
 @theme inline {

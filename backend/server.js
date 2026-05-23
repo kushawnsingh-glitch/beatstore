@@ -1,471 +1,158 @@
 // backend/server.js
 import express from 'express';
-import nodemailer from 'nodemailer';
 import dotenv from 'dotenv';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import cors from 'cors';
-import emailRouter from './api/email.js';
-import emailTestRouter from './api/emailTest.js';
-import { MongoClient } from 'mongodb';
-import mongoose from 'mongoose';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: join(__dirname, '.env') });
+import { createClient } from '@supabase/supabase-js';
 import colors from 'colors';
-import Beat from './models/Beat.js';
-import Admin from './models/Admin.js';
-import License from './models/License.js';
-import Order from './models/Order.js';
-import Customer from './models/Customer.js';
-import Coupon from './models/Coupon.js';
-import Pack from './models/Pack.js';
-import BeatPack from './models/BeatPack.js';
 import paypal from '@paypal/checkout-server-sdk';
 import Stripe from 'stripe';
 import crypto from 'crypto';
 import iso3166 from 'iso-3166-1';
 import fetch from 'node-fetch';
-import bcrypt from 'bcrypt';
+import emailRouter from './api/email.js';
+import emailTestRouter from './api/emailTest.js';
 import beatRoutes from './routes/beat.js';
-//
-dotenv.config();
+
+// ─── Supabase (service role = full DB + Storage access) ──────────────────────
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
+
+// ─── App + CORS ───────────────────────────────────────────────────────────────
 const allowedOrigins = [
   'http://localhost:5173',
-  'http://localhost:5173/',
-  'https://birdiebands.netlify.app',
-  // 'https://birdiebands.netlify.app/', // Add with trailing slash to match
-  // 'https://birdiebands.com/',
-  'https://birdiebands.com',
+  'http://localhost:5174',
+  'http://localhost:5175',
+  'https://kushawn.com',
+  'https://www.kushawn.com',
+  // Additional origins from env (comma-separated), e.g. Vercel preview URLs
+  ...(process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',').map(o => o.trim()) : []),
 ];
+
 const app = express();
-const PORT = process.env.PORT || 3001; // Use Render's assigned port or fallback to 3001 locally
-// app.use(cors());
-// app.use(cors({ origin: process.env.APP_BASE_URL }));
+const PORT = process.env.PORT || 3001;
 
 app.use(
   cors({
-    origin: function (origin, callback) {
-      console.log('CORS Origin:', origin); // Debug incoming origin
-      if (!origin || allowedOrigins.includes(origin)) {
-        callback(null, true);
-      } else {
-        console.log('Blocked by CORS:', origin);
-        callback(new Error('Not allowed by CORS'));
-      }
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) callback(null, true);
+      else callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
-    // allowedHeaders: ['Content-Type', 'Authorization'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'Content-Length',
-      'X-Requested-With',
-    ],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Content-Length', 'X-Requested-With'],
   })
 );
+
+// Stripe webhook needs raw body — must come BEFORE express.json()
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 
-// Generate presigned URL for S3 file
-const getPresignedUrl = async (key, expires = 3600, disposition = null) => {
+// ─── Stripe ───────────────────────────────────────────────────────────────────
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2022-11-15' });
+
+// ─── PayPal ───────────────────────────────────────────────────────────────────
+const makePaypalClient = () =>
+  new paypal.core.PayPalHttpClient(
+    new paypal.core.LiveEnvironment(
+      process.env.PAYPAL_CLIENT_ID,
+      process.env.PAYPAL_CLIENT_SECRET
+    )
+  );
+
+// ─── Storage helper (replaces S3 presigned URLs) ─────────────────────────────
+const getPresignedUrl = async (path, expires = 3600, downloadFilename = null) => {
+  if (!path) return null;
+  // Strip legacy s3://bucket/ prefix if present
+  const cleanPath = path.startsWith('s3://') ? path.replace(/^s3:\/\/[^/]+\//, '') : path;
+  const options = downloadFilename ? { download: downloadFilename } : {};
+  const { data, error } = await supabase.storage.from('beats').createSignedUrl(cleanPath, expires, options);
+  if (error) {
+    console.warn('Signed URL warning for path:', cleanPath, '-', error.message);
+    return null; // Don't throw — let the beat still show without a broken URL
+  }
+  return data.signedUrl;
+};
+
+// ─── MailerLite helper ────────────────────────────────────────────────────────
+const addToMailerLite = async (email, name) => {
+  const { MAILERLITE_API_KEY, MAILERLITE_GROUP_ID } = process.env;
+  if (!MAILERLITE_API_KEY || !MAILERLITE_GROUP_ID) return;
   try {
-    const params = {
-      Bucket: process.env.AWS_S3_BUCKET,
-      Key: key,
-    };
-    if (disposition) {
-      params.ResponseContentDisposition = disposition;
-    }
-    const command = new GetObjectCommand(params);
-    return await getSignedUrl(s3, command, { expiresIn: expires });
-  } catch (error) {
-    console.error('Error generating presigned URL:'.red, error);
-    throw error;
+    await fetch(
+      `https://connect.mailerlite.com/api/subscribers`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${MAILERLITE_API_KEY}`,
+        },
+        body: JSON.stringify({
+          email,
+          fields: { name },
+          groups: [MAILERLITE_GROUP_ID],
+          resubscribe: true,
+        }),
+      }
+    );
+    console.log(`MailerLite: subscribed ${email}`);
+  } catch (err) {
+    console.error('MailerLite subscribe error:', err);
   }
 };
 
-// PayPal setup
-const paypalClient = new paypal.core.PayPalHttpClient(
-  // new paypal.core.SandboxEnvironment(
-  //   process.env.PAYPAL_CLIENT_ID,
-  //   process.env.PAYPAL_CLIENT_SECRET
-  // )
-  new paypal.core.LiveEnvironment(
-    process.env.PAYPAL_CLIENT_ID,
-    process.env.PAYPAL_CLIENT_SECRET
-  )
-);
-
-// Stripe: Webhook for Payment Confirmation
-// Stripe Webhook: This MUST come BEFORE express.json() for this specific path
-// It uses express.raw() to get the raw body for signature verification.
-
-app.post(
-  '/api/stripe/webhook',
-  express.raw({ type: 'application/json' }),
-  async (req, res) => {
-    // debugger;
-    const sig = req.headers['stripe-signature'];
-    let event;
-    try {
-      // Modified: Verify raw body is a Buffer and signature is present
-      if (!Buffer.isBuffer(req.body)) {
-        throw new Error('Request body must be a Buffer');
-      }
-      if (!sig) {
-        throw new Error('Missing stripe-signature header');
-      }
-      event = stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET
-      );
-    } catch (err) {
-      console.error('Stripe webhook error:'.red, err);
-      return res.status(400).json({ error: 'Webhook Error' });
-    }
-
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
-      // const { orderId, cartItems, customerInfo } = session.metadata;
-      const { orderId, cartItems, customerInfo, couponCode } = session.metadata;
-      console.log(session.metadata, 'session.metadata');
-      try {
-        const parsedCartItems = JSON.parse(cartItems);
-        const parsedCustomerInfo = JSON.parse(customerInfo);
-
-        const { validatedItems, subtotal } = await validateCartItems(
-          parsedCartItems
-        );
-
-        const groups = {};
-        validatedItems.forEach((item) => {
-          if (item.licenseType === 'Exclusive') return;
-          if (item.type === 'Pack') return;
-
-          if (!groups[item.licenseType]) groups[item.licenseType] = [];
-          groups[item.licenseType].push(item);
-        });
-
-        for (const lic in groups) {
-          const groupItems = groups[lic];
-          if (groupItems.length < 2) continue;
-          groupItems.sort((a, b) => a.price - b.price);
-          const free = Math.floor(groupItems.length / 2);
-          for (let i = 0; i < free; i++) {
-            groupItems[i].effectivePrice = 0;
-          }
-          for (let i = free; i < groupItems.length; i++) {
-            groupItems[i].effectivePrice = groupItems[i].price;
-          }
-        }
-
-        validatedItems.forEach((item) => {
-          if (item.effectivePrice === undefined)
-            item.effectivePrice = item.price;
-        });
-        const afterBogo = validatedItems.reduce(
-          (sum, item) => sum + item.effectivePrice,
-          0
-        );
-
-        // Added: Compute coupon discount if couponCode provided
-        let couponDisc = 0;
-        let coupon = null;
-        if (couponCode) {
-          coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
-          if (!coupon) {
-            throw new Error('Invalid coupon');
-          }
-          couponDisc =
-            coupon.discountType === 'fixed'
-              ? coupon.discountValue
-              : (afterBogo * coupon.discountValue) / 100;
-        }
-        const finalTotal = afterBogo - couponDisc;
-
-        if (session.amount_total !== Math.trunc(finalTotal * 100)) {
-          throw new Error('Amount mismatch');
-        }
-
-        // NEW LOGIC: Distribute coupon discount proportionally only after validation
-        let finalItems;
-        if (couponCode && afterBogo > 0) {
-          const discountFactor = (afterBogo - couponDisc) / afterBogo;
-          finalItems = validatedItems.map((item) => ({
-            ...item,
-            // Apply the discount factor to the effectivePrice (after BOGO)
-            effectivePrice: item.effectivePrice * discountFactor,
-          }));
-        } else {
-          // If no coupon or subtotal is zero, use the original validated items
-          finalItems = validatedItems;
-        }
-
-        const orderItems = await Promise.all(
-          validatedItems.map(async (item) => {
-            if (item.type === 'Beat') {
-              // You don't need to re-fetch the beat here because validateCartItems already did.
-              // However, you do need to update availability for 'Exclusive' licenses.
-              if (item.licenseType === 'Exclusive') {
-                const beat = await Beat.findById(item.beatId);
-                if (beat) {
-                  beat.available = false;
-                  await beat.save();
-                }
-              }
-
-              // Return the complete item object, including all the necessary fields
-              return {
-                beatId: item.beatId,
-                title: item.title,
-                artist: item.artist,
-                licenseType: item.licenseType,
-                price: item.price, // Or item.effectivePrice, depending on your schema
-                effectivePrice: item.effectivePrice,
-                type: item.type, // ⭐ This is still needed for your schema
-                bpm: item.bpm,
-                key: item.key,
-                s3_file_url: await getPresignedUrl(
-                  item.s3_file_url.replace(
-                    `s3://${process.env.AWS_S3_BUCKET}/`,
-                    ''
-                  ),
-                  3600 * 24 * 7,
-                  `attachment; filename="${
-                    item.title
-                  } (Prod Birdie Bands).${item.s3_file_url.split('.').pop()}"`
-                ),
-              };
-            } else if (item.type === 'Pack') {
-              return {
-                beatId: item.beatId,
-                title: item.title,
-                artist: item.artist,
-                licenseType: item.licenseType,
-                price: item.price, // Or item.effectivePrice, depending on your schema
-                effectivePrice: item.effectivePrice,
-                type: item.type, // ⭐ This is still needed for your schema
-                bpm: null,
-                key: null,
-                s3_file_url: await getPresignedUrl(
-                  item.s3_file_url.replace(
-                    `s3://${process.env.AWS_S3_BUCKET}/`,
-                    ''
-                  ),
-                  3600 * 24 * 7,
-                  `attachment; filename="${item.title} ${item.s3_file_url
-                    .split('.')
-                    .pop()}"`
-                ),
-              };
-            }
-          })
-        );
-
-        await Order.create({
-          orderId,
-          paymentType: 'Stripe',
-          stripePaymentIntentId: session.payment_intent,
-          customerInfo: parsedCustomerInfo,
-          items: orderItems,
-          // totalPrice: parseFloat(totalPrice),
-          totalPrice: finalTotal.toFixed(2),
-        });
-        // // save to my customers collection but if customer already exists, update it
-
-        const purchaseDate = new Date().toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        });
-
-        await fetch(`${process.env.VITE_API_BASE_URL_BACKEND}/api/email`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: parsedCustomerInfo.email,
-            // subject: 'Your Birdie Bands Purchase - Download Link',
-            subject: `Birdie Bands | Download Your Beat (Order #${orderId.slice(
-              0,
-              4
-            )}...) – 7-Day Access`,
-            message: `
-            Thank You for Your Purchase!\n
-            Your order ID: ${orderId}\n\n
-            Purchased Beats:\n
-            ${orderItems
-              .map(
-                (item) =>
-                  `- ${item.title} - ${item.artist} Type Beat (${item.licenseType} License)\n  <img src="${item.s3_image_url}" alt="${item.title}" width="100" />`
-              )
-              .join('\n')}
-            \n
-            Download your files here: ${
-              process.env.APP_BASE_URL
-            }/download?orderId=${orderId}\n
-            This link is valid for 7 days.
-          `,
-            purchaseDate: purchaseDate,
-            template: 'purchaseConfirmation',
-            data: {
-              customerName: parsedCustomerInfo.name,
-              orderId: orderId,
-              purchaseDate: purchaseDate,
-              orderItems: orderItems, // This array now correctly contains BPM and Key
-              totalPrice: finalTotal.toFixed(2),
-              // totalPrice: totalPrice,
-              downloadLink: `${process.env.APP_BASE_URL}/download?orderId=${orderId}`,
-              paymentType: 'Stripe',
-            },
-          }),
-        });
-
-        // Added: Increment coupon uses if coupon was applied
-        if (couponCode) {
-          await Coupon.findOneAndUpdate(
-            { code: couponCode.toUpperCase() },
-            { $inc: { currentUses: 1 } }
-          );
-        }
-
-        res.json({ received: true });
-      } catch (err) {
-        console.error('Stripe webhook processing error:'.red, err);
-        res.status(500).json({ error: 'Failed to process webhook' });
-      }
-    } else {
-      res.json({ received: true });
-    }
-  }
-);
-// General JSON body parser - apply AFTER the specific raw body webhook handler
-app.use(express.json());
-app.use('/api', beatRoutes);
-const uri = process.env.MONGODB_URI;
-
-const s3 = new S3Client({
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-  region: process.env.AWS_REGION,
-});
-
-// Update beat by ID
-app.put('/beat', async (req, res) => {
-  const { beatId } = req.query;
-  let updateData = req.body;
-
-  if (!beatId) {
-    return res.status(400).json({ error: 'Beat ID is required' });
-  }
-
-  // Only update s3_urls if new values are provided (indicating a new upload)
-  const existingBeat = await Beat.findById(beatId);
-  if (!existingBeat) {
-    return res.status(404).json({ error: 'Beat not found' });
-  }
-
-  const finalUpdateData = {
-    title: updateData.title || existingBeat.title,
-    artist: updateData.artist || existingBeat.artist,
-    duration: updateData.duration || existingBeat.duration,
-    bpm: updateData.bpm !== undefined ? updateData.bpm : existingBeat.bpm,
-    key: updateData.key || existingBeat.key,
-    tags: updateData.tags || existingBeat.tags,
-    // s3_mp3_url: updateData.s3_mp3_url || existingBeat.s3_mp3_url,
-    // s3_image_url: updateData.s3_image_url || existingBeat.s3_image_url,
-    available:
-      updateData.available !== undefined
-        ? updateData.available
-        : existingBeat.available,
-  };
-
-  try {
-    const beat = await Beat.findByIdAndUpdate(
-      beatId,
-      { $set: finalUpdateData },
-      { new: true, runValidators: true }
-    );
-
-    if (!beat) {
-      return res.status(404).json({ error: 'Beat not found' });
-    }
-
-    res.status(200).json(beat);
-  } catch (error) {
-    res.status(500).json({ error: `Failed to update beat: ${error.message}` });
-  }
-});
-
-// Stripe setup
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: '2022-11-15',
-});
-
-// Generate unique order ID
+// ─── Utils ────────────────────────────────────────────────────────────────────
 const generateOrderId = () => crypto.randomUUID();
 
-// Validate cart items against MongoDB
+// ─── Cart validation ──────────────────────────────────────────────────────────
 const validateCartItems = async (cartItems) => {
-  // let totalPrice = 0;
-  // let totalPrice = 0;
-  // debugger;
   let subtotal = 0;
   const validatedItems = [];
 
   for (const item of cartItems) {
     if (item.type === 'Beat') {
-      const beat = await Beat.findById(item.beatId).lean();
-      if (!beat) {
-        throw new Error(`Beat with ID ${item.beatId} not found`);
-      }
-      const license = beat.licenses.find(
-        (lic) => lic.type === item.licenseType
-      );
-      if (!license) {
-        throw new Error(
-          `License ${item.licenseType} not found for beat ${item.beatId}`
-        );
-      }
-      // totalPrice += parseFloat(license.price);
+      const { data: beat, error } = await supabase.from('beats').select('*').eq('id', item.beatId).single();
+      if (error || !beat) throw new Error(`Beat with ID ${item.beatId} not found`);
+
+      const license = beat.licenses.find((lic) => lic.type === item.licenseType);
+      if (!license) throw new Error(`License ${item.licenseType} not found for beat ${item.beatId}`);
+
       const price = parseFloat(license.price);
       subtotal += price;
       validatedItems.push({
         beatId: item.beatId,
         licenseType: item.licenseType,
         price,
-        effectivePrice: price, // Initialize effectivePrice
+        effectivePrice: price,
         title: beat.title,
         artist: beat.artist,
-        // s3_image_url: item.s3_image_url,
+        bpm: beat.bpm,
+        key: beat.key,
         s3_image_url: item.s3_image_url,
         s3_file_url: license.s3_file_url,
         type: 'Beat',
       });
     } else if (item.type === 'Pack') {
-      const pack = await Pack.findById(item.beatId).lean();
-      if (!pack) {
-        throw new Error(`Pack with ID ${item.beatId} not found`);
-      }
-      const license = pack.licenses.find(
-        (lic) => lic.type === item.licenseType
-      );
-      if (!license) {
-        throw new Error(
-          `License ${item.licenseType} not found for beat ${item.beatId}`
-        );
-      }
-      // totalPrice += parseFloat(pack.price);
+      const { data: pack, error } = await supabase.from('packs').select('*').eq('id', item.beatId).single();
+      if (error || !pack) throw new Error(`Pack with ID ${item.beatId} not found`);
+
+      const license = pack.licenses.find((lic) => lic.type === item.licenseType);
+      if (!license) throw new Error(`License ${item.licenseType} not found for pack ${item.beatId}`);
+
       const price = parseFloat(pack.price);
       subtotal += price;
       validatedItems.push({
         beatId: item.beatId,
         licenseType: item.licenseType,
         price,
-        effectivePrice: price, // Initialize effectivePrice
+        effectivePrice: price,
         title: pack.title,
         artist: item.licenseType,
-        // s3_image_url: item.s3_image_url,
         s3_image_url: item.s3_image_url,
         s3_file_url: license.s3_file_url,
         type: 'Pack',
@@ -473,520 +160,377 @@ const validateCartItems = async (cartItems) => {
     }
   }
 
-  // return { validatedItems, totalPrice: totalPrice.toFixed(2) };
   return { validatedItems, subtotal };
 };
 
-async function startServer() {
-  // debugger;
+// ─── BOGO logic (extracted to avoid repetition) ───────────────────────────────
+const applyBogo = (validatedItems) => {
+  const groups = {};
+  validatedItems.forEach((item) => {
+    if (item.licenseType === 'Exclusive' || item.type === 'Pack') return;
+    if (!groups[item.licenseType]) groups[item.licenseType] = [];
+    groups[item.licenseType].push(item);
+  });
+
+  for (const lic in groups) {
+    const groupItems = groups[lic];
+    if (groupItems.length < 2) continue;
+    groupItems.sort((a, b) => a.price - b.price);
+    const free = Math.floor(groupItems.length / 2);
+    for (let i = 0; i < free; i++) groupItems[i].effectivePrice = 0;
+    for (let i = free; i < groupItems.length; i++) groupItems[i].effectivePrice = groupItems[i].price;
+  }
+
+  validatedItems.forEach((item) => {
+    if (item.effectivePrice === undefined) item.effectivePrice = item.price;
+  });
+
+  return validatedItems;
+};
+
+// ─── Stripe Webhook ───────────────────────────────────────────────────────────
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
   try {
-    // console.log(`Attempting to connect to MongoDB URI: ${uri.blue}`); // Log the URI
-    console.log(`Attempting to connect to MongoDB URI`.blue); // Log the URI
-    await mongoose.connect(uri, {
-      // Use the `uri` variable here
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    // Log a success message
-    console.log('Connected to MongoDB Atlas via Mongoose'.green);
-    // Verify the connected database name
-    console.log(`Connected database name: ${mongoose.connection.name.cyan}`);
+    if (!Buffer.isBuffer(req.body)) throw new Error('Request body must be a Buffer');
+    if (!sig) throw new Error('Missing stripe-signature header');
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('Stripe webhook error:'.red, err);
+    return res.status(400).json({ error: 'Webhook Error' });
+  }
 
-    const beatCount = await Beat.countDocuments();
-    const licenseCount = await License.countDocuments();
-    const ordersCount = await Order.countDocuments();
-    const packCount = await Pack.countDocuments();
-    console.log(`Found ${beatCount} beats in collection`.green);
-    console.log(`Found ${licenseCount} licenses in collection`.green);
-    console.log(`Found ${ordersCount} orders in collection`.green);
-    console.log(`Found ${packCount} packs in collection`.green);
+  if (event.type === 'checkout.session.completed') {
+    const session = event.data.object;
+    const { orderId, cartItems, customerInfo, couponCode, subscribeToNewsletter } = session.metadata;
+    try {
+      const parsedCartItems = JSON.parse(cartItems);
+      const parsedCustomerInfo = JSON.parse(customerInfo);
 
-    // Only start listening for requests AFTER successful DB connection
-    app.listen(PORT, () =>
-      console.log(`Server running on port ${PORT}`.blue.bold)
-    );
-  } catch (error) {
-    console.error('MongoDB connection error:'.red, error);
+      let { validatedItems } = await validateCartItems(parsedCartItems);
+      validatedItems = applyBogo(validatedItems);
+
+      const afterBogo = validatedItems.reduce((sum, item) => sum + item.effectivePrice, 0);
+
+      let couponDisc = 0;
+      if (couponCode) {
+        const { data: coupon } = await supabase.from('coupons').select('*').eq('code', couponCode.toUpperCase()).single();
+        if (!coupon) throw new Error('Invalid coupon');
+        couponDisc = coupon.discount_type === 'fixed'
+          ? coupon.discount_value
+          : (afterBogo * coupon.discount_value) / 100;
+      }
+
+      const finalTotal = afterBogo - couponDisc;
+      if (session.amount_total !== Math.trunc(finalTotal * 100)) throw new Error('Amount mismatch');
+
+      const discountFactor = couponCode && afterBogo > 0 ? finalTotal / afterBogo : 1;
+      const finalItems = validatedItems.map((item) => ({
+        ...item,
+        effectivePrice: item.effectivePrice * discountFactor,
+      }));
+
+      const orderItems = await Promise.all(
+        finalItems.map(async (item) => {
+          if (item.type === 'Beat' && item.licenseType === 'Exclusive') {
+            await supabase.from('beats').update({ available: false }).eq('id', item.beatId);
+          }
+          const ext = item.s3_file_url.split('.').pop();
+          const filename = item.type === 'Beat'
+            ? `${item.title} (Prod Birdie Bands).${ext}`
+            : `${item.title}.${ext}`;
+          return {
+            ...item,
+            s3_file_url: await getPresignedUrl(item.s3_file_url, 3600 * 24 * 7, filename),
+          };
+        })
+      );
+
+      await supabase.from('orders').insert({
+        order_id: orderId,
+        payment_type: 'Stripe',
+        stripe_payment_intent_id: session.payment_intent,
+        customer_info: parsedCustomerInfo,
+        items: orderItems,
+        total_price: parseFloat(finalTotal.toFixed(2)),
+      });
+
+      const purchaseDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      await fetch(`${process.env.VITE_API_BASE_URL_BACKEND}/api/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: parsedCustomerInfo.email,
+          subject: `Birdie Bands | Download Your Beat (Order #${orderId.slice(0, 4)}...) – 7-Day Access`,
+          purchaseDate,
+          template: 'purchaseConfirmation',
+          data: {
+            customerName: parsedCustomerInfo.name,
+            orderId,
+            purchaseDate,
+            orderItems,
+            totalPrice: finalTotal.toFixed(2),
+            downloadLink: `${process.env.APP_BASE_URL}/download?orderId=${orderId}`,
+            paymentType: 'Stripe',
+          },
+        }),
+      });
+
+      if (couponCode) {
+        await supabase.rpc('increment_coupon_uses', { coupon_code: couponCode.toUpperCase() });
+      }
+
+      if (subscribeToNewsletter === 'true') {
+        await addToMailerLite(parsedCustomerInfo.email, parsedCustomerInfo.name);
+      }
+
+      res.json({ received: true });
+    } catch (err) {
+      console.error('Stripe webhook processing error:'.red, err);
+      res.status(500).json({ error: 'Failed to process webhook' });
+    }
+  } else {
+    res.json({ received: true });
+  }
+});
+
+// General JSON body parser — after webhook raw handler
+app.use(express.json());
+app.use('/api', beatRoutes);
+
+// ─── Server startup ───────────────────────────────────────────────────────────
+async function startServer() {
+  try {
+    const { error } = await supabase.from('beats').select('id', { count: 'exact', head: true });
+    if (error) console.warn('Supabase connection warning:'.yellow, error.message);
+    else console.log('Connected to Supabase'.green);
+
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`.blue.bold));
+  } catch (err) {
+    console.error('Startup error:'.red, err);
     process.exit(1);
   }
 }
 
 startServer();
 
-// Route for sending email
+// ─── Email ────────────────────────────────────────────────────────────────────
 app.use('/api/email', emailRouter);
 app.use('/api/emailTest', emailTestRouter);
 
-// New endpoint to handle MailerLite API subscription
+// ─── MailerLite subscribe ─────────────────────────────────────────────────────
 app.post('/api/mailerlite/subscribe', async (req, res) => {
   const { name, email } = req.body;
-  const MAILERLITE_API_KEY = process.env.MAILERLITE_API_KEY;
-  const MAILERLITE_GROUP_ID = process.env.MAILERLITE_GROUP_ID;
-  if (!MAILERLITE_API_KEY || !MAILERLITE_GROUP_ID) {
-    console.error('MailerLite API key or Group ID is not set.');
+  const { MAILERLITE_API_KEY, MAILERLITE_GROUP_ID } = process.env;
+  if (!MAILERLITE_API_KEY || !MAILERLITE_GROUP_ID)
     return res.status(500).json({ error: 'Server configuration error' });
-  }
-
   try {
     const response = await fetch(
       `https://api.mailerlite.com/api/v2/groups/${MAILERLITE_GROUP_ID}/subscribers`,
       {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-MailerLite-ApiKey': MAILERLITE_API_KEY,
-        },
-        body: JSON.stringify({
-          email: email,
-          name: name,
-          resubscribe: true, // This allows existing users to be re-added
-        }),
+        headers: { 'Content-Type': 'application/json', 'X-MailerLite-ApiKey': MAILERLITE_API_KEY },
+        body: JSON.stringify({ email, name, resubscribe: true }),
       }
     );
-
     const data = await response.json();
-    if (!response.ok) {
-      console.error('MailerLite API error:', data);
-      return res
-        .status(response.status)
-        .json({ error: data.error.message || 'Failed to subscribe' });
-    }
-
-    res
-      .status(200)
-      .json({ success: true, message: 'Subscribed successfully!', data });
+    if (!response.ok)
+      return res.status(response.status).json({ error: data.error?.message || 'Failed to subscribe' });
+    res.status(200).json({ success: true, message: 'Subscribed successfully!', data });
   } catch (error) {
-    console.error('Error subscribing to MailerLite:', error);
     res.status(500).json({ error: 'Failed to subscribe' });
   }
 });
 
-// Fetch all beats with presigned URLs for previews and images
+// ─── GET /api/beats ───────────────────────────────────────────────────────────
 app.get('/api/beats', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 6; // Default to 20 for home page
-    let search = req.query.search || ''; // Get search query
+    const limit = parseInt(req.query.limit) || 6;
+    let search = req.query.search || '';
     const skip = (page - 1) * limit;
-    // Build query
-    let query = { available: true };
+
+    let query = supabase
+      .from('beats')
+      .select('*', { count: 'exact' })
+      .eq('available', true)
+      .order('created_at', { ascending: false })
+      .range(skip, skip + limit - 1);
+
     if (search) {
-      if (search == 'g funk' || search == 'gfunk') {
-        search = 'g-funk';
-      }
-      query = {
-        available: true,
-        $or: [
-          { title: { $regex: search, $options: 'i' } },
-          { artist: { $regex: search, $options: 'i' } },
-          { tags: { $regex: search, $options: 'i' } },
-        ],
-      };
+      if (search === 'g funk' || search === 'gfunk') search = 'g-funk';
+      query = query.or(`title.ilike.%${search}%,artist.ilike.%${search}%,tags.cs.{${search}}`);
     }
 
-    // const beatsList = await Beat.find({ available: true })
-    const beatsList = await Beat.find(query)
-      .sort({ created_at: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const { data: beatsList, count: totalBeats, error } = await query;
+    if (error) throw error;
 
-    // Add presigned URLs for previews and images
     for (const beat of beatsList) {
-      const mp3Key = beat.s3_mp3_url.startsWith('s3://')
-        ? beat.s3_mp3_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-        : beat.s3_mp3_url;
-      const imageKey = beat.s3_image_url?.startsWith('s3://')
-        ? beat.s3_image_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-        : beat.s3_image_url;
-
-      beat.s3_mp3_url = await getPresignedUrl(mp3Key, 3600 * 24 * 7); // 7 days
-      beat.s3_image_url = imageKey
-        ? await getPresignedUrl(imageKey, 3600 * 24 * 7) // 7 days
-        : null;
-      for (const license of beat.licenses) {
-        license.s3_file_url = null; // Hide download URLs
-      }
+      beat.s3_mp3_url = await getPresignedUrl(beat.s3_mp3_url, 3600 * 24 * 7);
+      beat.s3_image_url = beat.s3_image_url ? await getPresignedUrl(beat.s3_image_url, 3600 * 24 * 7) : null;
+      beat.licenses = beat.licenses.map((lic) => ({ ...lic, s3_file_url: null }));
     }
 
-    // const totalBeats = await Beat.countDocuments();
-    // const totalPages = Math.ceil(totalBeats / limit);
-    // Count beats matching the query
-    const totalBeats = await Beat.countDocuments(query);
-    const totalPages = Math.ceil(totalBeats / limit);
-    res.json({ beats: beatsList, page, totalPages, totalBeats });
+    res.json({ beats: beatsList, page, totalPages: Math.ceil(totalBeats / limit), totalBeats });
   } catch (error) {
     console.error('Error fetching beats:'.red, error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// New /api/download/:beatId endpoint
+// ─── GET /api/download/:beatId ────────────────────────────────────────────────
 app.get('/api/download/:beatId', async (req, res) => {
   try {
-    const { beatId } = req.params;
-    // const user = req.user; // Uncomment if using authentication middleware (e.g., JWT)
-
-    // Fetch beat from database
-    const beat = await Beat.findById(beatId).lean();
-    if (!beat) {
-      return res.status(404).json({ error: 'Beat not found' });
-    }
-
-    // Optional: Validate purchase
-    // Replace with your purchase validation logic
-    /*
-    if (!user) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    const hasPurchased = await Purchase.findOne({ userId: user.id, beatId }).lean();
-    if (!hasPurchased) {
-      return res.status(403).json({ error: 'Purchase required' });
-    }
-    */
-
-    // Use s3_mp3_url or a separate field (e.g., s3_download_url) for the downloadable file
-    const mp3Key = beat.s3_mp3_url.startsWith('s3://')
-      ? beat.s3_mp3_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-      : beat.s3_mp3_url;
-
-    // Generate presigned URL with Content-Disposition: attachment
+    const { data: beat, error } = await supabase.from('beats').select('*').eq('id', req.params.beatId).single();
+    if (error || !beat) return res.status(404).json({ error: 'Beat not found' });
     const downloadUrl = await getPresignedUrl(
-      mp3Key,
-      3600 * 24 * 7, // Short expiry for security
-      `attachment; filename="(www.BirdieBands.com) - ${beat.title} [${beat.bpm} BPM - ${beat.key}] [Prod Birdie Bands].mp3"`
-      // `attachment; filename="${beat.artist} Type Beat - ${beat.title.replace(
-      //   /[^a-zA-Z0-9]/g,
-      //   '_'
-      // )} [Prod Birdie Bands].mp3"`
+      beat.s3_mp3_url,
+      3600 * 24 * 7,
+      `(www.BirdieBands.com) - ${beat.title} [${beat.bpm} BPM - ${beat.key}] [Prod Birdie Bands].mp3`
     );
-
     res.json({ downloadUrl });
   } catch (error) {
-    console.error('Error generating download URL:'.red, error);
     res.status(500).json({ error: 'Failed to generate download URL' });
   }
 });
-// download license /api/licenses/download/:licenseId
+
+// ─── GET /api/licenses/download/:licenseId ────────────────────────────────────
 app.get('/api/licenses/download/:licenseId', async (req, res) => {
   try {
-    const { licenseId } = req.params;
-    const license = await License.findById(licenseId).lean();
-    if (!license) {
-      return res.status(404).json({ error: 'License not found' });
-    }
-    const fileKey = license.licenseDownloadLink.startsWith('s3://')
-      ? license.licenseDownloadLink.replace(
-          `s3://${process.env.AWS_S3_BUCKET}/`,
-          ''
-        )
-      : license.licenseDownloadLink;
-    const downloadUrl = await getPresignedUrl(fileKey, 3600 * 24 * 7); // 7 days
+    const { data: license, error } = await supabase.from('licenses').select('*').eq('id', req.params.licenseId).single();
+    if (error || !license) return res.status(404).json({ error: 'License not found' });
+    const downloadUrl = await getPresignedUrl(license.license_download_link, 3600 * 24 * 7);
     res.json({ downloadUrl });
   } catch (error) {
-    console.error('Error generating download URL:'.red, error);
     res.status(500).json({ error: 'Failed to generate download URL' });
   }
 });
 
-// Fetch all licenses
+// ─── GET /api/licenses ────────────────────────────────────────────────────────
 app.get('/api/licenses', async (req, res) => {
   try {
-    const licenses = await License.find({}, { licenseContract: 0 }).sort({
-      created_at: 1,
-    });
-
-    // const licenses = await License.find();
+    const { data: licenses, error } = await supabase
+      .from('licenses')
+      .select('id, type, title, description, features, license_download_link, created_at')
+      .order('created_at', { ascending: true });
+    if (error) throw error;
     res.json(licenses);
   } catch (err) {
-    console.error('Error fetching licenses:', err);
     res.status(500).send('Server error');
   }
 });
 
-// Added: Endpoint to validate coupon (case-insensitive, checks validity, returns details if valid)
+// ─── POST /api/coupons/validate ───────────────────────────────────────────────
 app.post('/api/coupons/validate', async (req, res) => {
   const { code, subtotal } = req.body;
   try {
-    const coupon = await Coupon.findOne({
-      code: code.toUpperCase(),
-      isActive: true,
-    });
-    if (!coupon) {
-      return res.status(404).json({ error: 'Coupon not found' });
-    }
+    const { data: coupon, error } = await supabase
+      .from('coupons')
+      .select('*')
+      .eq('code', code.toUpperCase())
+      .eq('is_active', true)
+      .single();
+    if (error || !coupon) return res.status(404).json({ error: 'Coupon not found' });
+
     const now = new Date();
-    if (now < coupon.validFrom || now > coupon.validUntil) {
+    if (now < new Date(coupon.valid_from) || now > new Date(coupon.valid_until))
       return res.status(400).json({ error: 'Coupon expired' });
-    }
-    if (coupon.maxUses !== null && coupon.currentUses >= coupon.maxUses) {
+    if (coupon.max_uses !== null && coupon.current_uses >= coupon.max_uses)
       return res.status(400).json({ error: 'Coupon usage limit reached' });
-    }
-    if (subtotal < coupon.minOrderAmount) {
+    if (subtotal < coupon.min_order_amount)
       return res.status(400).json({ error: 'Minimum order amount not met' });
-    }
-    res.json({
-      discountType: coupon.discountType,
-      discountValue: coupon.discountValue,
-    });
+
+    res.json({ discountType: coupon.discount_type, discountValue: coupon.discount_value });
   } catch (err) {
-    console.error('Coupon validation error:'.red, err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// PayPal: Create Order
+// ─── POST /api/paypal/create-order ────────────────────────────────────────────
 app.post('/api/paypal/create-order', async (req, res) => {
-  // const { cartItems, customerInfo } = req.body;
-  // debugger;
-  const { cartItems, customerInfo, couponCode } = req.body;
-
+  const { cartItems, customerInfo, couponCode, subscribeToNewsletter } = req.body;
   const newOrderId = generateOrderId();
 
-  // Check if country is an ISO code or name
-
   let countryCode = customerInfo.country;
-
   if (!/^[A-Z]{2}$/.test(customerInfo.country)) {
-    // Try to resolve as a country name
-
     const country = iso3166.whereCountry(customerInfo.country);
-
-    if (!country) {
-      return res.status(400).json({ error: 'Invalid country name or code' });
-    }
-
+    if (!country) return res.status(400).json({ error: 'Invalid country name or code' });
     countryCode = country.alpha2;
   } else {
-    // Verify it's a valid ISO code
-
     const country = iso3166.whereAlpha2(customerInfo.country);
-
-    if (!country) {
-      return res.status(400).json({ error: 'Invalid country code' });
-    }
-
-    countryCode = customerInfo.country; // Already an ISO code
+    if (!country) return res.status(400).json({ error: 'Invalid country code' });
   }
 
   try {
-    if (!customerInfo.email || !customerInfo.name) {
-      throw new Error('Missing customerInfo fields');
-    }
+    if (!customerInfo.email || !customerInfo.name) throw new Error('Missing customerInfo fields');
 
-    // save customer info to MONGO DB
-
-    await Customer.findOneAndUpdate(
-      { email: customerInfo.email },
-
-      {
-        $set: {
-          name: customerInfo.name,
-
-          email: customerInfo.email,
-
-          address: customerInfo.address,
-
-          city: customerInfo.city,
-
-          state: customerInfo.state,
-
-          zip: customerInfo.zip,
-
-          country: customerInfo.country,
-        },
-      },
-
-      { upsert: true }
+    await supabase.from('customers').upsert(
+      { email: customerInfo.email, name: customerInfo.name, address: customerInfo.address, city: customerInfo.city, state: customerInfo.state, zip: customerInfo.zip, country: customerInfo.country },
+      { onConflict: 'email' }
     );
 
-    const { validatedItems, subtotal } = await validateCartItems(cartItems);
-
-    // const { validatedItems, totalPrice } = await validateCartItems(cartItems);
-
-    // Added: Compute BOGO
-
-    const groups = {};
-
-    validatedItems.forEach((item) => {
-      if (item.licenseType === 'Exclusive') return;
-      if (item.type === 'Pack') return;
-      if (!groups[item.licenseType]) groups[item.licenseType] = []; // Create an array for each license type
-      groups[item.licenseType].push(item);
-    });
-
-    for (const lic in groups) {
-      // For each license type
-      const groupItems = groups[lic]; // Get the items for this license type
-      if (groupItems.length < 2) continue;
-
-      groupItems.sort((a, b) => a.price - b.price);
-
-      const free = Math.floor(groupItems.length / 2);
-
-      for (let i = 0; i < free; i++) {
-        groupItems[i].effectivePrice = 0;
-      }
-
-      for (let i = free; i < groupItems.length; i++) {
-        groupItems[i].effectivePrice = groupItems[i].price;
-      }
-    }
-
-    validatedItems.forEach((item) => {
-      if (item.effectivePrice === undefined) item.effectivePrice = item.price;
-    });
-
-    let afterBogo = validatedItems.reduce(
-      (sum, item) => sum + item.effectivePrice,
-      0
-    );
-
-    // Added: Validate and compute coupon discount
+    let { validatedItems, subtotal } = await validateCartItems(cartItems);
+    validatedItems = applyBogo(validatedItems);
+    let afterBogo = validatedItems.reduce((sum, item) => sum + item.effectivePrice, 0);
 
     let couponDisc = 0;
-
-    let coupon = null;
-
     if (couponCode) {
-      coupon = await Coupon.findOne({
-        code: couponCode.toUpperCase(),
-
-        isActive: true,
-      });
-
-      if (!coupon) {
-        throw new Error('Coupon not found');
-      }
-
+      const { data: coupon } = await supabase.from('coupons').select('*').eq('code', couponCode.toUpperCase()).eq('is_active', true).single();
+      if (!coupon) throw new Error('Coupon not found');
       const now = new Date();
-
-      if (now < coupon.validFrom || now > coupon.validUntil) {
-        throw new Error('Coupon expired');
-      }
-
-      if (coupon.maxUses !== null && coupon.currentUses >= coupon.maxUses) {
-        throw new Error('Coupon usage limit reached');
-      }
-
-      if (subtotal < coupon.minOrderAmount) {
-        throw new Error('Minimum order amount not met');
-      }
-
-      couponDisc =
-        coupon.discountType === 'fixed'
-          ? coupon.discountValue
-          : (afterBogo * coupon.discountValue) / 100;
+      if (now < new Date(coupon.valid_from) || now > new Date(coupon.valid_until)) throw new Error('Coupon expired');
+      if (coupon.max_uses !== null && coupon.current_uses >= coupon.max_uses) throw new Error('Coupon usage limit reached');
+      if (subtotal < coupon.min_order_amount) throw new Error('Minimum order amount not met');
+      couponDisc = coupon.discount_type === 'fixed' ? coupon.discount_value : (afterBogo * coupon.discount_value) / 100;
     }
 
-    let finalTotal = afterBogo - couponDisc;
+    const factor = afterBogo > 0 ? (afterBogo - couponDisc) / afterBogo : 0;
+    validatedItems.forEach((item) => { item.displayPrice = item.effectivePrice * factor; });
+    let finalTotal = Math.floor(validatedItems.reduce((sum, item) => sum + item.displayPrice, 0) * 100) / 100;
 
-    // Added: Apply coupon discount proportionally to effective prices
-
-    const factor = afterBogo > 0 ? finalTotal / afterBogo : 0;
-
-    validatedItems.forEach((item) => {
-      item.displayPrice =
-        item.effectivePrice > 0 ? item.effectivePrice * factor : 0;
-
-      item.finalPrice =
-        item.effectivePrice > 0 ? item.effectivePrice * factor : 0;
-    });
-
-    // finalTotal = validatedItems.reduce((sum, item) => sum + item.finalPrice, 0); // Recompute for precision
-
-    finalTotal = validatedItems.reduce(
-      (sum, item) => sum + item.displayPrice,
-
-      0
-    ); // Recompute for precision
-    finalTotal = Math.floor(finalTotal * 100) / 100; // Round to 2 decimal places
-
-    // console.log('Validated Items:', validatedItems, 'Total Price:', totalPrice);
-
-    const paypalClient = new paypal.core.PayPalHttpClient(
-      // new paypal.core.SandboxEnvironment(
-      //   process.env.PAYPAL_CLIENT_ID,
-      //   process.env.PAYPAL_CLIENT_SECRET
-      // )
-
-      new paypal.core.LiveEnvironment(
-        process.env.PAYPAL_CLIENT_ID,
-        process.env.PAYPAL_CLIENT_SECRET
-      )
-    );
-
+    const paypalClient = makePaypalClient();
     const request = new paypal.orders.OrdersCreateRequest();
-
     request.prefer('return=representation');
-
     request.requestBody({
       intent: 'CAPTURE',
-
-      purchase_units: [
-        {
-          amount: {
-            currency_code: 'USD',
-            value: finalTotal, // Updated to finalTotal // value: totalPrice,
-            breakdown: {
-              item_total: {
-                currency_code: 'USD',
-                // value: finalTotal.toFixed(2),
-                value: afterBogo.toFixed(2),
-              },
-              discount: {
-                currency_code: 'USD',
-                value: couponDisc.toFixed(2),
-              },
-
-              // item_total: { currency_code: 'USD', value: totalPrice },
-            },
-          },
-
-          items: validatedItems.map((item) => ({
-            name: `${item.title} (${
-              item.licenseType == 'Exclusive'
-                ? `${item.licenseType} License`
-                : `${item.licenseType} Lease`
-            })`,
-            unit_amount: {
-              currency_code: 'USD',
-              // value: item.displayPrice.toFixed(2),
-              value: item.effectivePrice.toFixed(2),
-            },
-            // unit_amount: { currency_code: 'USD', value: item.price.toFixed(2) },
-            quantity: 1,
-          })),
-          // custom_id: newOrderId,
-          custom_id: couponCode ? `${newOrderId}|${couponCode}` : newOrderId,
-          shipping: {
-            address: {
-              address_line_1: customerInfo.address,
-              admin_area_2: customerInfo.city,
-              admin_area_1: customerInfo.state,
-              postal_code: customerInfo.zip,
-              country_code: countryCode,
-            },
+      purchase_units: [{
+        amount: {
+          currency_code: 'USD',
+          value: finalTotal,
+          breakdown: {
+            item_total: { currency_code: 'USD', value: afterBogo.toFixed(2) },
+            discount: { currency_code: 'USD', value: couponDisc.toFixed(2) },
           },
         },
-      ],
-
+        items: validatedItems.map((item) => ({
+          name: `${item.title} (${item.licenseType === 'Exclusive' ? `${item.licenseType} License` : `${item.licenseType} Lease`})`,
+          unit_amount: { currency_code: 'USD', value: item.effectivePrice.toFixed(2) },
+          quantity: 1,
+        })),
+        custom_id: `${newOrderId}|${couponCode || ''}|${subscribeToNewsletter ? 'true' : 'false'}`,
+        shipping: {
+          address: {
+            address_line_1: customerInfo.address,
+            admin_area_2: customerInfo.city,
+            admin_area_1: customerInfo.state,
+            postal_code: customerInfo.zip,
+            country_code: countryCode,
+          },
+        },
+      }],
       application_context: {
-        return_url: `${process.env.APP_BASE_URL}/download?orderId=${newOrderId}`, // Success URL
-        cancel_url: `${process.env.APP_BASE_URL}/checkout`, // Cancel URL
-        // shipping_preference: 'NO_SHIPPING', // Since you're selling digital beats
+        return_url: `${process.env.APP_BASE_URL}/download?orderId=${newOrderId}`,
+        cancel_url: `${process.env.APP_BASE_URL}/checkout`,
         shipping_preference: 'SET_PROVIDED_ADDRESS',
-        user_action: 'PAY_NOW', // Changes button text to "Pay Now"
-        brand_name: 'Birdie Bands', // Appears on PayPal checkout page
+        user_action: 'PAY_NOW',
+        brand_name: 'Birdie Bands',
       },
-
       payer: {
-        // name: { given_name: customerInfo.name },
         name: {
           given_name: customerInfo.name.split(' ')[0],
-          surname:
-            customerInfo.name.split(' ').slice(1).join(' ') || 'Customer',
-        }, // PayPal requires given_name and surname
+          surname: customerInfo.name.split(' ').slice(1).join(' ') || 'Customer',
+        },
         email_address: customerInfo.email,
         address: {
           address_line_1: customerInfo.address,
@@ -999,217 +543,88 @@ app.post('/api/paypal/create-order', async (req, res) => {
     });
 
     const response = await paypalClient.execute(request);
-
-    console.log('Paypal order created', response.result);
-
     res.json({ orderId: response.result.id });
-
-    // res.json({ orderId: newOrderId });
   } catch (err) {
     console.error('PayPal create order error:'.red, err);
-
     res.status(500).json({ error: 'Failed to create PayPal order' });
   }
 });
 
-// PayPal: Capture Order
+// ─── POST /api/paypal/capture-order ──────────────────────────────────────────
 app.post('/api/paypal/capture-order', async (req, res) => {
   const { orderId, cartItems, customerInfo } = req.body;
-
-  debugger;
   try {
-    // const { validatedItems, totalPrice } = await validateCartItems(cartItems);
-    const { validatedItems, subtotal } = await validateCartItems(cartItems);
+    let { validatedItems, subtotal } = await validateCartItems(cartItems);
+    validatedItems = applyBogo(validatedItems);
 
-    // Verify PayPal order amount
-    const request = new paypal.orders.OrdersGetRequest(orderId);
-    const order = await paypalClient.execute(request);
+    const paypalClient = makePaypalClient();
+    const orderDetails = await paypalClient.execute(new paypal.orders.OrdersGetRequest(orderId));
+    const [, couponCode, subscribeToNewsletter] = orderDetails.result.purchase_units[0].custom_id.split('|');
 
-    // Added: Extract couponCode from custom_id
-    const [customOrderId, couponCode] =
-      order.result.purchase_units[0].custom_id.split('|');
-
-    // Added: Compute BOGO and coupon for validation
-    const groups = {};
-    validatedItems.forEach((item) => {
-      if (item.licenseType === 'Exclusive') return;
-      if (item.type === 'Pack') return;
-      if (!groups[item.licenseType]) groups[item.licenseType] = [];
-      groups[item.licenseType].push(item);
-    });
-    for (const lic in groups) {
-      const groupItems = groups[lic];
-      if (groupItems.length < 2) continue;
-      groupItems.sort((a, b) => a.price - b.price);
-      const free = Math.floor(groupItems.length / 2);
-      for (let i = 0; i < free; i++) {
-        groupItems[i].effectivePrice = 0;
-      }
-      for (let i = free; i < groupItems.length; i++) {
-        groupItems[i].effectivePrice = groupItems[i].price;
-      }
-    }
-    validatedItems.forEach((item) => {
-      if (item.effectivePrice === undefined) item.effectivePrice = item.price;
-    });
-    const afterBogo = validatedItems.reduce(
-      (sum, item) => sum + item.effectivePrice,
-      0
-    );
-
+    const afterBogo = validatedItems.reduce((sum, item) => sum + item.effectivePrice, 0);
     let couponDisc = 0;
     let coupon = null;
     if (couponCode) {
-      coupon = await Coupon.findOne({ code: couponCode.toUpperCase() });
-      if (!coupon) {
-        throw new Error('Invalid coupon');
-      }
-      couponDisc =
-        coupon.discountType === 'fixed'
-          ? coupon.discountValue
-          : (afterBogo * coupon.discountValue) / 100;
+      const { data: c } = await supabase.from('coupons').select('*').eq('code', couponCode.toUpperCase()).single();
+      coupon = c;
+      if (!coupon) throw new Error('Invalid coupon');
+      couponDisc = coupon.discount_type === 'fixed' ? coupon.discount_value : (afterBogo * coupon.discount_value) / 100;
     }
-    // const finalTotal = afterBogo - couponDisc;
     const finalTotal = Math.floor((afterBogo - couponDisc) * 100) / 100;
 
     if (
-      order.result.status !== 'APPROVED' ||
-      parseFloat(order.result.purchase_units[0].amount.value) !==
-        parseFloat(finalTotal)
-      // parseFloat(totalPrice)
-    ) {
-      throw new Error('Invalid order or amount mismatch');
-    }
+      orderDetails.result.status !== 'APPROVED' ||
+      parseFloat(orderDetails.result.purchase_units[0].amount.value) !== parseFloat(finalTotal)
+    ) throw new Error('Invalid order or amount mismatch');
 
-    // Capture the order
     const captureRequest = new paypal.orders.OrdersCaptureRequest(orderId);
     captureRequest.prefer('return=representation');
     const capture = await paypalClient.execute(captureRequest);
 
     if (capture.result.status === 'COMPLETED') {
-      // NEW LOGIC: Distribute coupon discount proportionally only after validation
-      let finalItems;
-      if (couponCode && afterBogo > 0) {
-        const discountFactor = (afterBogo - couponDisc) / afterBogo;
-        finalItems = validatedItems.map((item) => ({
-          ...item,
-          // Apply the discount factor to the effectivePrice (after BOGO)
-          effectivePrice: item.effectivePrice * discountFactor,
-        }));
-      } else {
-        // If no coupon or subtotal is zero, use the original validated items
-        finalItems = validatedItems;
-      }
+      const discountFactor = couponCode && afterBogo > 0 ? (afterBogo - couponDisc) / afterBogo : 1;
+      const finalItems = validatedItems.map((item) => ({ ...item, effectivePrice: item.effectivePrice * discountFactor }));
 
       const orderItems = await Promise.all(
-        finalItems.map(async (item, index) => {
-          if (item.type === 'Beat') {
-            const beat = await Beat.findById(item.beatId);
-            if (item.licenseType === 'Exclusive') {
-              beat.available = false;
-              await beat.save();
-              console.log(
-                `Beat with ID ${item.beatId} has been set to available: ${beat.available}`
-              );
-            }
-            const plainBeat = beat.toObject();
-
-            return {
-              ...item,
-              type: item.type, // ⭐ ADD THIS LINE
-              licenseType: item.licenseType,
-              bpm: plainBeat?.bpm ?? null,
-              key: plainBeat?.key ?? null,
-              price: item.effectivePrice.toFixed(2), // Use the new effectivePrice
-              s3_file_url: await getPresignedUrl(
-                item.s3_file_url.replace(
-                  `s3://${process.env.AWS_S3_BUCKET}/`,
-                  ''
-                ),
-                3600 * 24 * 7,
-                `attachment; filename="${
-                  item.title
-                } (Prod Birdie Bands).${item.s3_file_url.split('.').pop()}"`
-              ),
-            };
-          } else if (item.type === 'Pack') {
-            const pack = await Pack.findById(item.beatId);
-
-            return {
-              ...item,
-              type: item.type, // ⭐ ADD THIS LINE
-              licenseType: item.licenseType,
-              bpm: null,
-              key: null,
-              price: item.effectivePrice.toFixed(2), // Use the new effectivePrice
-              s3_file_url: await getPresignedUrl(
-                item.s3_file_url.replace(
-                  `s3://${process.env.AWS_S3_BUCKET}/`,
-                  ''
-                ),
-                3600 * 24 * 7,
-                `attachment; filename="${item.title} ${item.s3_file_url
-                  .split('.')
-                  .pop()}"`
-              ),
-            };
+        finalItems.map(async (item) => {
+          if (item.type === 'Beat' && item.licenseType === 'Exclusive') {
+            await supabase.from('beats').update({ available: false }).eq('id', item.beatId);
           }
+          const ext = item.s3_file_url.split('.').pop();
+          const filename = item.type === 'Beat'
+            ? `${item.title} (Prod Birdie Bands).${ext}`
+            : `${item.title}.${ext}`;
+          return {
+            ...item,
+            price: item.effectivePrice.toFixed(2),
+            s3_file_url: await getPresignedUrl(item.s3_file_url, 3600 * 24 * 7, filename),
+          };
         })
       );
 
-      await Order.create({
-        // orderId: newOrderId,
-        orderId: orderId,
-        paymentType: 'PayPal',
-        paypalOrderId: orderId,
-        customerInfo,
+      await supabase.from('orders').insert({
+        order_id: orderId,
+        payment_type: 'PayPal',
+        paypal_order_id: orderId,
+        customer_info: customerInfo,
         items: orderItems,
-        // totalPrice: parseFloat(totalPrice),
-        totalPrice: finalTotal.toFixed(2),
+        total_price: parseFloat(finalTotal.toFixed(2)),
       });
 
-      // Send email
-      const purchaseDate = new Date().toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
-
-      // Send email via /api/email
+      const purchaseDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       await fetch(`${process.env.VITE_API_BASE_URL_BACKEND}/api/email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: customerInfo.email,
-          // subject: 'Your Birdie Bands Purchase - Download Link',
-          subject: `Birdie Bands | Download Your Beat (Order #${orderId.slice(
-            0,
-            4
-          )}...) – 7-Day Access`,
-          message: `
-            Thank You for Your Purchase!\n
-            Your order ID: ${orderId}\n\n
-            Purchased Beats:\n
-            ${orderItems
-              .map(
-                (item) =>
-                  `- ${item.title} - ${item.artist} Type Beat (${item.licenseType} License)\n  <img src="${item.s3_image_url}" alt="${item.title}" width="100" />`
-              )
-              .join('\n')}
-            \n
-            Download your files here: ${
-              process.env.APP_BASE_URL
-            }/download?orderId=${orderId}\n
-            This link is valid for 7 days.
-          `,
-          purchaseDate: purchaseDate,
+          subject: `Birdie Bands | Download Your Beat (Order #${orderId.slice(0, 4)}...) – 7-Day Access`,
+          purchaseDate,
           template: 'purchaseConfirmation',
           data: {
             customerName: customerInfo.name,
-            orderId: orderId,
-            purchaseDate: purchaseDate,
-            orderItems: orderItems, // This array now correctly contains BPM and Key
-            // totalPrice: totalPrice,
+            orderId,
+            purchaseDate,
+            orderItems,
             totalPrice: finalTotal.toFixed(2),
             downloadLink: `${process.env.APP_BASE_URL}/download?orderId=${orderId}`,
             paymentType: 'PayPal',
@@ -1217,18 +632,17 @@ app.post('/api/paypal/capture-order', async (req, res) => {
         }),
       });
 
-      // Added: Increment coupon uses if coupon was applied
       if (couponCode && coupon) {
-        await Coupon.findOneAndUpdate(
-          { code: couponCode.toUpperCase() },
-          { $inc: { currentUses: 1 } }
-        );
+        await supabase.rpc('increment_coupon_uses', { coupon_code: couponCode.toUpperCase() });
+      }
+
+      if (subscribeToNewsletter === 'true') {
+        await addToMailerLite(customerInfo.email, customerInfo.name);
       }
 
       res.json({
         status: 'success',
-        // orderId: newOrderId,
-        orderId: orderId,
+        orderId,
         items: orderItems.map((item) => ({
           title: item.title,
           artist: item.artist,
@@ -1246,118 +660,44 @@ app.post('/api/paypal/capture-order', async (req, res) => {
   }
 });
 
-// Stripe: Create Checkout Session
+// ─── POST /api/stripe/create-checkout-session ────────────────────────────────
 app.post('/api/stripe/create-checkout-session', async (req, res) => {
-  // const { cartItems, customerInfo } = req.body;
-  const { cartItems, customerInfo, couponCode } = req.body;
-  // Check if country is an ISO code or name
+  const { cartItems, customerInfo, couponCode, subscribeToNewsletter } = req.body;
+
   let countryCode = customerInfo.country;
   if (!/^[A-Z]{2}$/.test(customerInfo.country)) {
-    // Try to resolve as a country name
     const country = iso3166.whereCountry(customerInfo.country);
-    if (!country) {
-      return res.status(400).json({ error: 'Invalid country name or code' });
-    }
+    if (!country) return res.status(400).json({ error: 'Invalid country name or code' });
     countryCode = country.alpha2;
   } else {
-    // Verify it's a valid ISO code
     const country = iso3166.whereAlpha2(customerInfo.country);
-    if (!country) {
-      return res.status(400).json({ error: 'Invalid country code' });
-    }
-    countryCode = customerInfo.country; // Already an ISO code
+    if (!country) return res.status(400).json({ error: 'Invalid country code' });
   }
 
-  // save customer info to MONGO DB
-  // save to my customers collection but if customer already exists, update it
-  await Customer.findOneAndUpdate(
-    { email: customerInfo.email },
-    {
-      $set: {
-        name: customerInfo.name,
-        email: customerInfo.email,
-        address: customerInfo.address,
-        city: customerInfo.city,
-        state: customerInfo.state,
-        zip: customerInfo.zip,
-        country: customerInfo.country,
-      },
-    },
-    { upsert: true }
+  await supabase.from('customers').upsert(
+    { email: customerInfo.email, name: customerInfo.name, address: customerInfo.address, city: customerInfo.city, state: customerInfo.state, zip: customerInfo.zip, country: customerInfo.country },
+    { onConflict: 'email' }
   );
 
   try {
-    const { validatedItems, subtotal } = await validateCartItems(cartItems);
-    // const { validatedItems, totalPrice } = await validateCartItems(cartItems);
-    // console.log(validatedItems, 'validatedItems');
+    let { validatedItems } = await validateCartItems(cartItems);
+    validatedItems = applyBogo(validatedItems);
 
-    // Added: Compute BOGO
-    const groups = {};
-    validatedItems.forEach((item) => {
-      if (item.licenseType === 'Exclusive') return;
-      if (item.type === 'Pack') return;
-
-      if (!groups[item.licenseType]) groups[item.licenseType] = [];
-      groups[item.licenseType].push(item);
-    });
-    for (const lic in groups) {
-      const groupItems = groups[lic];
-      if (groupItems.length < 2) continue;
-      groupItems.sort((a, b) => a.price - b.price);
-      const free = Math.floor(groupItems.length / 2);
-      for (let i = 0; i < free; i++) {
-        groupItems[i].effectivePrice = 0;
-      }
-      for (let i = free; i < groupItems.length; i++) {
-        groupItems[i].effectivePrice = groupItems[i].price;
-      }
-    }
-    validatedItems.forEach((item) => {
-      if (item.effectivePrice === undefined) item.effectivePrice = item.price;
-    });
-
-    // Check for a coupon and create a Stripe coupon if it exists
     let stripeCouponId = null;
     if (couponCode) {
-      const coupon = await Coupon.findOne({
-        code: couponCode.toUpperCase(),
-        isActive: true,
-      });
-
+      const { data: coupon } = await supabase.from('coupons').select('*').eq('code', couponCode.toUpperCase()).eq('is_active', true).single();
       if (coupon) {
         try {
-          // First, check if the coupon already exists in Stripe
-          const stripeCoupon = await stripe.coupons.retrieve(coupon.code);
-          stripeCouponId = stripeCoupon.id;
+          const existing = await stripe.coupons.retrieve(coupon.code);
+          stripeCouponId = existing.id;
         } catch (e) {
-          // If the coupon doesn't exist, create it
           if (e.code === 'resource_missing') {
-            let couponParams = {
-              id: coupon.code,
-              currency: 'usd',
-              duration: 'once',
-            };
-
-            if (coupon.discountType === 'percentage') {
-              couponParams.percent_off = coupon.discountValue;
-            } else if (coupon.discountType === 'fixed') {
-              couponParams.amount_off = Math.round(coupon.discountValue * 100);
-            } else {
-              // If discountType is neither, log a warning and don't create a coupon.
-              console.warn(
-                `Invalid discountType for coupon ${coupon.code}: ${coupon.discountType}. Skipping Stripe coupon creation.`
-              );
-              stripeCouponId = null;
-            }
-
-            if (stripeCouponId === null) {
-              const newStripeCoupon = await stripe.coupons.create(couponParams);
-              stripeCouponId = newStripeCoupon.id;
-            }
-          } else {
-            // Re-throw other errors
-            throw e;
-          }
+            const params = { id: coupon.code, currency: 'usd', duration: 'once' };
+            if (coupon.discount_type === 'percentage') params.percent_off = coupon.discount_value;
+            else params.amount_off = Math.round(coupon.discount_value * 100);
+            const created = await stripe.coupons.create(params);
+            stripeCouponId = created.id;
+          } else throw e;
         }
       }
     }
@@ -1365,31 +705,18 @@ app.post('/api/stripe/create-checkout-session', async (req, res) => {
     const newOrderId = generateOrderId();
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
-      line_items: validatedItems.map((item) => {
-        return {
-          price_data: {
-            currency: 'usd',
-            product_data: {
-              name: `${item.title} (${
-                item.licenseType == 'Exclusive'
-                  ? `${item.licenseType} License`
-                  : `${item.licenseType} Lease`
-              })`,
-              images: [item.s3_image_url],
-              description: `${
-                item.type === 'Beat'
-                  ? `${item.artist} Type Beat `
-                  : `${item.licenseType}`
-              }`,
-            },
-            // unit_amount: Math.round(item.displayPrice * 100),
-            unit_amount: Math.round(item.effectivePrice * 100),
-
-            // unit_amount: Math.round(item.price * 100),
+      line_items: validatedItems.map((item) => ({
+        price_data: {
+          currency: 'usd',
+          product_data: {
+            name: `${item.title} (${item.licenseType === 'Exclusive' ? `${item.licenseType} License` : `${item.licenseType} Lease`})`,
+            images: [item.s3_image_url],
+            description: item.type === 'Beat' ? `${item.artist} Type Beat` : item.licenseType,
           },
-          quantity: 1,
-        };
-      }),
+          unit_amount: Math.round(item.effectivePrice * 100),
+        },
+        quantity: 1,
+      })),
       mode: 'payment',
       success_url: `${process.env.APP_BASE_URL}/download?orderId=${newOrderId}`,
       cancel_url: `${process.env.APP_BASE_URL}/checkout`,
@@ -1398,176 +725,70 @@ app.post('/api/stripe/create-checkout-session', async (req, res) => {
       discounts: stripeCouponId ? [{ coupon: stripeCouponId }] : [],
       metadata: {
         orderId: newOrderId,
-        // cartItems: JSON.stringify(cartItems),
-        // only pass in beatid and license type from validateditems
-        cartItems: JSON.stringify(
-          validatedItems.map((item) => ({
-            beatId: item.beatId,
-            type: item.type,
-            licenseType: item.licenseType,
-          }))
-        ),
-        customerInfo: JSON.stringify({
-          name: customerInfo.name,
-          email: customerInfo.email,
-          address: customerInfo.address,
-          city: customerInfo.city,
-          state: customerInfo.state,
-          zip: customerInfo.zip,
-          country: countryCode, // Use validated ISO country code
-        }),
+        cartItems: JSON.stringify(validatedItems.map((item) => ({ beatId: item.beatId, type: item.type, licenseType: item.licenseType }))),
+        customerInfo: JSON.stringify({ name: customerInfo.name, email: customerInfo.email, address: customerInfo.address, city: customerInfo.city, state: customerInfo.state, zip: customerInfo.zip, country: countryCode }),
         couponCode: couponCode || '',
+        subscribeToNewsletter: subscribeToNewsletter ? 'true' : 'false',
       },
     });
 
     res.json({ sessionId: session.id });
   } catch (err) {
-    console.error('Stripe create checkout session error:'.red, err);
+    console.error('Stripe checkout session error:'.red, err);
     res.status(500).json({ error: 'Failed to create Checkout Session' });
   }
 });
 
-// Download endpoint
+// ─── GET /download ────────────────────────────────────────────────────────────
 app.get('/download', async (req, res) => {
   const { orderId } = req.query;
-
   try {
-    const order = await Order.findOne({ orderId }).lean();
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
+    const { data: order, error } = await supabase.from('orders').select('*').eq('order_id', orderId).single();
+    if (error || !order) return res.status(404).json({ error: 'Order not found' });
 
-    // --- Extracting information from the 'order' object ---
-    const customerName = order.customerInfo?.name; // Using optional chaining for safety
-    const customerEmail = order.customerInfo?.email; // Using optional chaining for safety
-    const totalPrice = order.totalPrice;
-    const orderItemsWithBeatDetails = await Promise.all(
+    const diffDays = (new Date() - new Date(order.created_at)) / (1000 * 60 * 60 * 24);
+    if (diffDays > 7) return res.status(403).json({ error: 'Download link expired' });
+
+    const itemsWithDetails = await Promise.all(
       order.items.map(async (item) => {
         if (item.type === 'Beat') {
-          const beat = await Beat.findById(item.beatId).lean();
-
-          // Ensure beat exists before trying to access its properties
-          if (!beat) {
-            console.warn(
-              `Beat with ID ${item.beatId} not found for order ${orderId}`
-            );
-            return {
-              title: item.title,
-              artist: item.artist,
-              downloadUrl: item.s3_file_url,
-              s3_image_url: null, // Or a default image URL
-              bpm: null,
-              key: null,
-              licenseType: item.licenseType, // Get item's license type
-              type: 'Beat',
-            };
-          }
-
-          const s3_image_url_cleaned = beat.s3_image_url?.startsWith('s3://')
-            ? beat.s3_image_url.replace(
-                `s3://${process.env.AWS_S3_BUCKET}/`,
-                ''
-              )
-            : beat.s3_image_url;
-
-          return {
-            title: item.title,
-            artist: item.artist,
-            downloadUrl: item.s3_file_url, // Assuming this is already a direct URL or handled elsewhere
-            s3_image_url: s3_image_url_cleaned,
-            bpm: beat.bpm,
-            key: beat.key,
-            licenseType: item.licenseType, // Get item's license type
-            type: 'Beat',
-          };
+          const { data: beat } = await supabase.from('beats').select('s3_image_url, bpm, key').eq('id', item.beatId).single();
+          const imageKey = beat?.s3_image_url?.startsWith('s3://')
+            ? beat.s3_image_url.replace(/^s3:\/\/[^/]+\//, '')
+            : beat?.s3_image_url ?? null;
+          return { ...item, downloadUrl: item.s3_file_url, s3_image_url: imageKey, bpm: beat?.bpm ?? null, key: beat?.key ?? null };
         } else if (item.type === 'Pack') {
-          const pack = await Pack.findById(item.beatId).lean();
-          // Ensure beat exists before trying to access its properties
-          if (!pack) {
-            console.warn(
-              `Pack with ID ${item.beatId} not found for order ${orderId}`
-            );
-            return {
-              title: item.title,
-              artist: item.artist,
-              downloadUrl: item.s3_file_url,
-              s3_image_url: null, // Or a default image URL
-              bpm: null,
-              key: null,
-              licenseType: item.licenseType, // Get item's license type
-              type: 'Pack',
-            };
-          }
-
-          const s3_image_url_cleaned = pack.s3_image_url?.startsWith('s3://')
-            ? pack.s3_image_url.replace(
-                `s3://${process.env.AWS_S3_BUCKET}/`,
-                ''
-              )
-            : pack.s3_image_url;
-
-          const license = pack.licenses.find(
-            (lic) => lic.type === item.licenseType
-          );
-          if (!license) {
-            throw new Error(
-              `License ${item.licenseType} not found for beat ${item.beatId}`
-            );
-          }
-
-          const file_key = license.s3_file_url?.startsWith('s3://')
-            ? license.s3_file_url.replace(
-                `s3://${process.env.AWS_S3_BUCKET}/`,
-                ''
-              )
-            : license.s3_file_url;
-
+          const { data: pack } = await supabase.from('packs').select('s3_image_url, licenses').eq('id', item.beatId).single();
+          const imageKey = pack?.s3_image_url?.startsWith('s3://')
+            ? pack.s3_image_url.replace(/^s3:\/\/[^/]+\//, '')
+            : pack?.s3_image_url ?? null;
+          const license = pack?.licenses?.find((l) => l.type === item.licenseType);
+          const fileKey = license?.s3_file_url?.startsWith('s3://')
+            ? license.s3_file_url.replace(/^s3:\/\/[^/]+\//, '')
+            : license?.s3_file_url ?? null;
           return {
-            title: item.title,
-            artist: item.artist,
-            downloadUrl: await getPresignedUrl(file_key, 3600 * 24 * 7),
-            s3_image_url: s3_image_url_cleaned,
+            ...item,
+            downloadUrl: fileKey ? await getPresignedUrl(fileKey, 3600 * 24 * 7) : item.s3_file_url,
+            s3_image_url: imageKey,
             bpm: null,
             key: null,
-            licenseType: item.licenseType, // Get item's license type
-            type: 'Pack',
           };
         }
       })
     );
 
-    // Generate presigned URLs for images
     const imageUrls = await Promise.all(
-      orderItemsWithBeatDetails.map(async (item) => {
-        return item.s3_image_url
-          ? await getPresignedUrl(item.s3_image_url, 3600 * 24 * 7) // 7 days
-          : null;
-      })
+      itemsWithDetails.map((item) =>
+        item.s3_image_url ? getPresignedUrl(item.s3_image_url, 3600 * 24 * 7) : null
+      )
     );
-
-    const orderDate = new Date(order.createdAt);
-    const now = new Date();
-    const diffDays = (now - orderDate) / (1000 * 60 * 60 * 24);
-    if (diffDays > 7) {
-      return res.status(403).json({ error: 'Download link expired' });
-    }
 
     res.json({
       orderId,
-      customerName, // Included
-      customerEmail, // Included
-      items: orderItemsWithBeatDetails.map((item, index) => ({
-        title: item.title,
-        artist: item.artist,
-        downloadUrl: item.downloadUrl,
-        imageUrl: imageUrls[index], // Assign the resolved image URL
-        bpm: item.bpm,
-        key: item.key,
-        licenseType: item.licenseType, // Included
-        type: item.type,
-        price: item.price,
-      })),
-      totalPrice,
+      customerName: order.customer_info?.name,
+      customerEmail: order.customer_info?.email,
+      items: itemsWithDetails.map((item, i) => ({ ...item, imageUrl: imageUrls[i] })),
+      totalPrice: order.total_price,
     });
   } catch (err) {
     console.error('Download error:'.red, err);
@@ -1575,167 +796,108 @@ app.get('/download', async (req, res) => {
   }
 });
 
-// get single beat
-// curl localhost:3001/api/beat/:id
+// ─── GET /beat (public single beat) ──────────────────────────────────────────
 app.get('/beat', async (req, res) => {
   const { beatId } = req.query;
-  // console.log(beatId, 'beatId');
   try {
-    const beat = await Beat.findById(beatId).lean();
-    if (!beat) {
-      return res.status(404).json({ error: 'Beat not found' });
-    }
-    // Add presigned URLs for previews and images and put license.s3_file_ur null
-    const mp3Key = beat.s3_mp3_url.startsWith('s3://')
-      ? beat.s3_mp3_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-      : beat.s3_mp3_url;
-    const imageKey = beat.s3_image_url?.startsWith('s3://')
-      ? beat.s3_image_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-      : beat.s3_image_url;
-
-    beat.s3_mp3_url = await getPresignedUrl(mp3Key, 3600 * 24 * 7); // 7 days
-    beat.s3_image_url = imageKey
-      ? await getPresignedUrl(imageKey, 3600 * 24 * 7) // 7 days
-      : null;
-
-    for (const license of beat.licenses) {
-      license.s3_file_url = null; // Hide download URLs
-    }
-
+    const { data: beat, error } = await supabase.from('beats').select('*').eq('id', beatId).single();
+    if (error || !beat) return res.status(404).json({ error: 'Beat not found' });
+    beat.s3_mp3_url = await getPresignedUrl(beat.s3_mp3_url, 3600 * 24 * 7);
+    beat.s3_image_url = beat.s3_image_url ? await getPresignedUrl(beat.s3_image_url, 3600 * 24 * 7) : null;
+    beat.licenses = beat.licenses.map((lic) => ({ ...lic, s3_file_url: null }));
     res.json(beat);
   } catch (err) {
-    console.error('Get beat error:'.red, err);
     res.status(500).json({ error: 'Failed to retrieve beat' });
   }
 });
 
-// get related beats
+// ─── PUT /beat (update availability) ─────────────────────────────────────────
+app.put('/beat', async (req, res) => {
+  const { beatId } = req.query;
+  if (!beatId) return res.status(400).json({ error: 'Beat ID is required' });
+  try {
+    const { data: existing, error: fetchErr } = await supabase.from('beats').select('*').eq('id', beatId).single();
+    if (fetchErr || !existing) return res.status(404).json({ error: 'Beat not found' });
+
+    const u = req.body;
+    const { data: beat, error } = await supabase
+      .from('beats')
+      .update({
+        title: u.title || existing.title,
+        artist: u.artist || existing.artist,
+        duration: u.duration || existing.duration,
+        bpm: u.bpm !== undefined ? u.bpm : existing.bpm,
+        key: u.key || existing.key,
+        tags: u.tags || existing.tags,
+        available: u.available !== undefined ? u.available : existing.available,
+      })
+      .eq('id', beatId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.status(200).json(beat);
+  } catch (error) {
+    res.status(500).json({ error: `Failed to update beat: ${error.message}` });
+  }
+});
+
+// ─── GET /related-beats ───────────────────────────────────────────────────────
 app.get('/related-beats', async (req, res) => {
   const { tags, excludeBeatId } = req.query;
-  // console.log(tags, 'tags');
-  // console.log(excludeBeatId, 'excludeBeatId');
-  if (!tags) {
-    return res.status(400).json({ error: 'Tags parameter is required.' });
-  }
+  if (!tags) return res.status(400).json({ error: 'Tags parameter is required.' });
 
-  const tagArray = tags
-    .split(',')
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0);
+  const tagArray = tags.split(',').map((t) => t.trim()).filter(Boolean);
+  if (!tagArray.length) return res.json([]);
 
-  if (tagArray.length === 0) {
-    return res.json([]); // No tags provided, return empty array
-  }
   try {
-    const relatedBeats = await Beat.find({
-      tags: {
-        $in: tagArray,
-      }, // Find beats where the 'tags' array contains any of the provided tags
-      _id: { $ne: excludeBeatId }, // Exclude the current beat
-    })
-      .limit(10) // Limit the number of related beats (e.g., 8 or 12)
-      .sort({ createdAt: -1 }) // Or sort by views, popularity, etc.
-      .lean(); // For plain JavaScript objects
-    // Add presigned URLs for previews and images for related beats
+    const { data: relatedBeats, error } = await supabase
+      .from('beats')
+      .select('*')
+      .overlaps('tags', tagArray)
+      .neq('id', excludeBeatId)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+
     for (const beat of relatedBeats) {
-      if (beat.s3_mp3_url) {
-        const mp3Key = beat.s3_mp3_url.startsWith('s3://')
-          ? beat.s3_mp3_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-          : beat.s3_mp3_url;
-        beat.s3_mp3_url = await getPresignedUrl(mp3Key, 3600); // Shorter expiry for preview
-      }
-      if (beat.s3_image_url) {
-        const imageKey = beat.s3_image_url.startsWith('s3://')
-          ? beat.s3_image_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-          : beat.s3_image_url;
-        beat.s3_image_url = await getPresignedUrl(imageKey, 3600 * 24 * 7); // Longer expiry for images
-      }
-      // Ensure licenses don't expose download URLs
-      if (beat.licenses && Array.isArray(beat.licenses)) {
-        for (const license of beat.licenses) {
-          license.s3_file_url = null;
-        }
-      }
-      // Map _id to id for consistency with frontend Track interface
-      beat.id = beat._id;
+      if (beat.s3_mp3_url) beat.s3_mp3_url = await getPresignedUrl(beat.s3_mp3_url, 3600);
+      if (beat.s3_image_url) beat.s3_image_url = await getPresignedUrl(beat.s3_image_url, 3600 * 24 * 7);
+      if (beat.licenses) beat.licenses = beat.licenses.map((lic) => ({ ...lic, s3_file_url: null }));
     }
-    // console.log(relatedBeats, 'relatedBeats');
+
     res.json(relatedBeats);
   } catch (err) {
-    console.error('Get related beats error:'.red, err);
     res.status(500).json({ error: 'Failed to retrieve related beats' });
   }
 });
 
-// create admin with bcrypt
-app.post('/api/create-admin', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    const name = 'Birdie Bands';
-    // Check if an admin already exists
-    const existingAdmin = await Admin.findOne({});
-    if (existingAdmin) {
-      return res.status(403).json({ error: 'Admin already exists' });
-    }
-
-    // Hash the password
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
-
-    // Create and save the new admin
-    const admin = new Admin({ name, email, passwordHash });
-    await admin.save();
-
-    res.json({ message: 'Admin created successfully' });
-  } catch (err) {
-    console.error('Admin creation error:', err);
-    res.status(500).json({ error: 'Failed to create admin' });
-  }
-});
-
-// log admin in with bcrypt
+// ─── POST /api/admin-login ────────────────────────────────────────────────────
 app.post('/api/admin-login', async (req, res) => {
+  const { email, password } = req.body;
   try {
-    const { email, password } = req.body;
-
-    // Find admin by email
-    const admin = await Admin.findOne({ email });
-    if (!admin) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-
-    // Compare password with stored hash
-    const isMatch = await bcrypt.compare(password, admin.passwordHash);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Invalid email or password' });
-    }
-    // Successful login - Now also return the user data
-    const user = {
-      name: admin.name, // Assuming your admin model has a 'name' field
-      email: admin.email,
-    };
-
-    // Successful login
-    res.json({ message: 'Admin login successful', user });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return res.status(401).json({ error: 'Invalid email or password' });
+    res.json({ message: 'Admin login successful', user: { name: 'KUSHAWN', email: data.user.email } });
   } catch (err) {
-    console.error('Login error:', err);
     res.status(500).json({ error: 'Failed to login' });
   }
 });
 
-// ORDERS FETCH AND CREATE
+// ─── GET /api/orders ──────────────────────────────────────────────────────────
 app.get('/api/orders', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 1000;
-    const orders = await Order.find().sort({ createdAt: -1 }).limit(limit);
+    const { data: orders, error } = await supabase.from('orders').select('*').order('created_at', { ascending: false }).limit(limit);
+    if (error) throw error;
     res.json({ orders });
   } catch (err) {
-    console.error('Error fetching orders:', err);
     res.status(500).json({ error: 'Failed to fetch orders' });
   }
 });
 
-// Get Packs
+// ─── GET /api/packs ───────────────────────────────────────────────────────────
 app.get('/api/packs', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -1743,54 +905,25 @@ app.get('/api/packs', async (req, res) => {
     let search = req.query.search || '';
     const skip = (page - 1) * limit;
 
-    let query = { available: true };
-    if (search) {
-      query = {
-        available: true,
-        $or: [
-          { title: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } },
-          { tags: { $regex: search, $options: 'i' } },
-        ],
-      };
-    }
+    let query = supabase.from('packs').select('*', { count: 'exact' }).eq('available', true).order('created_at', { ascending: false }).range(skip, skip + limit - 1);
+    if (search) query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
 
-    const packsList = await Pack.find(query)
-      .sort({ created_at: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const { data: packsList, count: totalPacks, error } = await query;
+    if (error) throw error;
 
     for (const pack of packsList) {
-      const mp3Key = pack.s3_mp3_url.startsWith('s3://')
-        ? pack.s3_mp3_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-        : pack.s3_mp3_url;
-      const imageKey = pack.s3_image_url?.startsWith('s3://')
-        ? pack.s3_image_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-        : pack.s3_image_url;
-      const fileKey = pack.s3_file_url?.startsWith('s3://')
-        ? pack.s3_file_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-        : pack.s3_file_url;
-
-      pack.s3_mp3_url = await getPresignedUrl(mp3Key, 3600 * 24 * 7); // 7 days
-      pack.s3_image_url = imageKey
-        ? await getPresignedUrl(imageKey, 3600 * 24 * 7)
-        : null;
-      for (const license of pack.licenses) {
-        license.s3_file_url = null; // Hide download URLs
-      }
+      pack.s3_mp3_url = await getPresignedUrl(pack.s3_mp3_url, 3600 * 24 * 7);
+      pack.s3_image_url = pack.s3_image_url ? await getPresignedUrl(pack.s3_image_url, 3600 * 24 * 7) : null;
+      pack.licenses = pack.licenses.map((lic) => ({ ...lic, s3_file_url: null }));
     }
 
-    const totalPacks = await Pack.countDocuments(query);
-    const totalPages = Math.ceil(totalPacks / limit);
-    res.json({ packs: packsList, page, totalPages, totalPacks });
+    res.json({ packs: packsList, page, totalPages: Math.ceil(totalPacks / limit), totalPacks });
   } catch (error) {
-    console.error('Error fetching packs:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// Get ALL BEAT PACKS 🔊
+// ─── GET /api/beatpacks ───────────────────────────────────────────────────────
 app.get('/api/beatpacks', async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -1798,140 +931,61 @@ app.get('/api/beatpacks', async (req, res) => {
     let search = req.query.search || '';
     const skip = (page - 1) * limit;
 
-    let query = { available: true };
-    if (search) {
-      query = {
-        available: true,
-        $or: [
-          { title: { $regex: search, $options: 'i' } },
-          { description: { $regex: search, $options: 'i' } },
-          { tags: { $regex: search, $options: 'i' } },
-        ],
-      };
-    }
+    let query = supabase.from('beat_packs').select('*', { count: 'exact' }).eq('available', true).order('created_at', { ascending: false }).range(skip, skip + limit - 1);
+    if (search) query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
 
-    const beatPacksList = await BeatPack.find(query)
-      .sort({ created_at: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const { data: beatPacksList, count: totalPacks, error } = await query;
+    if (error) throw error;
 
-    // Sign URLs for each pack
     for (const pack of beatPacksList) {
-      const mp3Key = pack.s3_mp3_url.startsWith('s3://')
-        ? pack.s3_mp3_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-        : pack.s3_mp3_url;
-      const imageKey = pack.s3_image_url?.startsWith('s3://')
-        ? pack.s3_image_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-        : pack.s3_image_url;
-      const fileKey = pack.s3_file_url?.startsWith('s3://')
-        ? pack.s3_file_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-        : pack.s3_file_url;
-
-      pack.s3_mp3_url = await getPresignedUrl(mp3Key, 3600 * 24 * 7); // 7 days
-      pack.s3_image_url = imageKey
-        ? await getPresignedUrl(imageKey, 3600 * 24 * 7)
-        : null;
-      for (const license of pack.licenses) {
-        license.s3_file_url = null; // Hide download URLs
-      }
+      pack.s3_mp3_url = await getPresignedUrl(pack.s3_mp3_url, 3600 * 24 * 7);
+      pack.s3_image_url = pack.s3_image_url ? await getPresignedUrl(pack.s3_image_url, 3600 * 24 * 7) : null;
+      pack.licenses = pack.licenses.map((lic) => ({ ...lic, s3_file_url: null }));
     }
-    const totalPacks = await BeatPack.countDocuments(query);
-    const totalPages = Math.ceil(totalPacks / limit);
-    res.json({ packs: beatPacksList, page, totalPages, totalPacks });
+
+    res.json({ packs: beatPacksList, page, totalPages: Math.ceil(totalPacks / limit), totalPacks });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// SINGLE BEAT PACK
+// ─── GET /beat-pack ───────────────────────────────────────────────────────────
 app.get('/beat-pack', async (req, res) => {
   const { packId } = req.query;
   try {
-    const retrievedPack = await BeatPack.findById(packId).lean();
-    if (!retrievedPack)
-      return res.status(404).json({ error: 'Beat pack not found' });
-
-    // Reuse your URL logic
-    const keys = {
-      mp3: retrievedPack.s3_mp3_url.replace(
-        `s3://${process.env.AWS_S3_BUCKET}/`,
-        ''
-      ),
-      image: retrievedPack.s3_image_url?.replace(
-        `s3://${process.env.AWS_S3_BUCKET}/`,
-        ''
-      ),
-    };
-
-    retrievedPack.s3_mp3_url = await getPresignedUrl(keys.mp3, 604800);
-    retrievedPack.s3_image_url = keys.image
-      ? await getPresignedUrl(keys.image, 604800)
-      : null;
-
-    retrievedPack.licenses.forEach((l) => (l.s3_file_url = null));
-
-    res.json(retrievedPack);
+    const { data: pack, error } = await supabase.from('beat_packs').select('*').eq('id', packId).single();
+    if (error || !pack) return res.status(404).json({ error: 'Beat pack not found' });
+    pack.s3_mp3_url = await getPresignedUrl(pack.s3_mp3_url, 604800);
+    pack.s3_image_url = pack.s3_image_url ? await getPresignedUrl(pack.s3_image_url, 604800) : null;
+    pack.licenses = pack.licenses.map((lic) => ({ ...lic, s3_file_url: null }));
+    res.json(pack);
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve beat pack' });
   }
 });
 
-// get single pack
-// curl localhost:3001/pack?packId=:id
+// ─── GET /pack ────────────────────────────────────────────────────────────────
 app.get('/pack', async (req, res) => {
   const { packId } = req.query;
-  // console.log(packId, 'packId');
   try {
-    // The issue was here: 'pack' was being used for both the model and the retrieved document.
-    // We've renamed the retrieved document to 'retrievedPack' to avoid the naming conflict.
-    // The model 'pack' (which we assume is defined elsewhere) is now correctly accessed.
-    const retrievedPack = await Pack.findById(packId).lean();
-    if (!retrievedPack) {
-      return res.status(404).json({ error: 'pack not found' });
-    }
-
-    // Add presigned URLs for previews and images and put license.s3_file_ur null
-    const mp3Key = retrievedPack.s3_mp3_url.startsWith('s3://')
-      ? retrievedPack.s3_mp3_url.replace(
-          `s3://${process.env.AWS_S3_BUCKET}/`,
-          ''
-        )
-      : retrievedPack.s3_mp3_url;
-    const imageKey = retrievedPack.s3_image_url?.startsWith('s3://')
-      ? retrievedPack.s3_image_url.replace(
-          `s3://${process.env.AWS_S3_BUCKET}/`,
-          ''
-        )
-      : retrievedPack.s3_image_url;
-
-    // Update the properties of the retrieved document with the new URLs
-    retrievedPack.s3_mp3_url = await getPresignedUrl(mp3Key, 3600 * 24 * 7); // 7 days
-    retrievedPack.s3_image_url = imageKey
-      ? await getPresignedUrl(imageKey, 3600 * 24 * 7) // 7 days
-      : null;
-
-    for (const license of retrievedPack.licenses) {
-      license.s3_file_url = null; // Hide download URLs
-    }
-
-    // Send the updated document back in the response
-    res.json(retrievedPack);
+    const { data: pack, error } = await supabase.from('packs').select('*').eq('id', packId).single();
+    if (error || !pack) return res.status(404).json({ error: 'Pack not found' });
+    pack.s3_mp3_url = await getPresignedUrl(pack.s3_mp3_url, 3600 * 24 * 7);
+    pack.s3_image_url = pack.s3_image_url ? await getPresignedUrl(pack.s3_image_url, 3600 * 24 * 7) : null;
+    pack.licenses = pack.licenses.map((lic) => ({ ...lic, s3_file_url: null }));
+    res.json(pack);
   } catch (err) {
-    console.error('Get pack error:'.red, err);
     res.status(500).json({ error: 'Failed to retrieve pack' });
   }
 });
 
-// CREATE
-// Create Beat
+// ─── POST /api/create-beat ────────────────────────────────────────────────────
 app.post('/api/create-beat', async (req, res) => {
   try {
-    const newBeat = new Beat(req.body);
-    const savedBeat = await newBeat.save();
-    res.json(savedBeat);
+    const { data: beat, error } = await supabase.from('beats').insert(req.body).select().single();
+    if (error) throw error;
+    res.json(beat);
   } catch (err) {
-    console.error('Create beat error:'.red, err);
     res.status(500).json({ error: 'Failed to create beat' });
   }
 });

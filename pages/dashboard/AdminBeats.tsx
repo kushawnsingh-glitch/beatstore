@@ -40,7 +40,7 @@ import {
 } from '@/components/ui/pagination'; // Assuming this is your custom component.
 import { format } from 'date-fns';
 const AdminBeats = () => {
-  document.title = `Birdie Bands | Admin Beats`;
+  document.title = `KUSHAWN | Admin Beats`;
   const { beats, isBeatsLoaded, fetchBeats, totalPages, currentPage } =
     useBeats();
 

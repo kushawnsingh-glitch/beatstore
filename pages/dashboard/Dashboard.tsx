@@ -6,7 +6,7 @@ import { SiteHeader } from '@/components/site-header';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 
 export default function Page() {
-  document.title = `Birdie Bands | Dashboard`;
+  document.title = `KUSHAWN | Dashboard`;
   return (
     <SidebarProvider
       className="!z-50 !relative"

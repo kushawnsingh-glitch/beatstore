@@ -19,7 +19,7 @@ const Maintenance = () => {
             hoverIntensity={0.3}
             enableHover={true}
           >
-            Birdie Bands Website is currently under maintenance
+            KUSHAWN Website is currently under maintenance
           </FuzzyText>
           <FuzzyText
             fontSize={24}

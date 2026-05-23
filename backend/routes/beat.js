@@ -1,448 +1,213 @@
 // backend/routes/beat.js
 import express from 'express';
-import {
-  S3Client,
-  PutObjectCommand,
-  GetObjectCommand,
-} from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
+import multer from 'multer';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-import mongoose from 'mongoose';
-import Beat from '../models/Beat.js'; // Your Beat model
-import multer from 'multer'; // For handling multipart/form-data file uploads
-import path from 'path';
+const __dirname = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: join(__dirname, '../.env') });
 
 const router = express.Router();
 
-// Configure AWS S3 Client
-const s3 = new S3Client({
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
-  region: process.env.AWS_REGION,
-});
-const getPresignedUrl = async (key, expires = 3600, disposition = null) => {
-  try {
-    const params = {
-      Bucket: process.env.AWS_S3_BUCKET,
-      Key: key,
-    };
-    if (disposition) {
-      params.ResponseContentDisposition = disposition;
-    }
-    const command = new GetObjectCommand(params);
-    return await getSignedUrl(s3, command, { expiresIn: expires });
-  } catch (error) {
-    console.error('Error generating presigned URL:'.red, error);
-    throw error;
-  }
-};
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-// Configure Multer for file uploads
-const storage = multer.memoryStorage();
 const upload = multer({
-  storage,
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB limit
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = [
-      'image/jpeg', // .jpg, .jpeg
-      'image/png', // .png
-      'image/webp', // .webp ✅
-      'audio/mpeg', // .mp3
-      'application/zip', // .zip
-    ];
-    console.log('File MIME type:', file.mimetype); // Add this to debug
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(
-        new Error(
-          'Invalid file type. Only JPEG, PNG, WEBP, MP3, and ZIP are allowed.',
-        ),
-      );
-    }
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp', 'audio/mpeg', 'application/zip'];
+    if (allowed.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Invalid file type. Only JPEG, PNG, WEBP, MP3, and ZIP are allowed.'));
   },
 });
 
-// Upload endpoint
+// ─── POST /api/upload ─────────────────────────────────────────────────────────
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
     const { file } = req;
     const { type, title } = req.body;
     const year = new Date().getFullYear();
-    // const path = `beats/${year}-beats/${sanitizedTitle}/image/${file.originalname}`;
 
-    console.log('Received upload request:', {
-      fileName: file?.originalname,
-      fileType: file?.mimetype,
-      type,
-      title,
-    });
     if (!file || !type || !title) {
-      return res
-        .status(400)
-        .json({ error: 'File, type, and title are required.' });
+      return res.status(400).json({ error: 'File, type, and title are required.' });
     }
 
-    // Sanitize title for S3 key (remove special characters, spaces, etc.)
     const sanitizedTitle = title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
-    if (!sanitizedTitle) {
-      return res.status(400).json({ error: 'Invalid or empty title.' });
-    }
-    let s3Key;
+    if (!sanitizedTitle) return res.status(400).json({ error: 'Invalid or empty title.' });
 
-    // Determine S3 key based on file type
+    let storagePath;
     switch (type) {
-      case 'image':
-        s3Key = `beats/${year}-beats/${sanitizedTitle}/image/${file.originalname}`;
-        break;
-      case 'tagged_mp3':
-        s3Key = `beats/${year}-beats/${sanitizedTitle}/tagged/${file.originalname}`;
-        break;
-      case 'basic_mp3':
-        s3Key = `beats/${year}-beats/${sanitizedTitle}/basic/${file.originalname}`;
-        break;
-      case 'premium_zip':
-        s3Key = `beats/${year}-beats/${sanitizedTitle}/premium/${file.originalname}`;
-        break;
-      case 'pro_zip':
-        s3Key = `beats/${year}-beats/${sanitizedTitle}/stems/${file.originalname}`;
-        break;
-      default:
-        return res.status(400).json({ error: 'Invalid file type.' });
+      case 'image':       storagePath = `beats/${year}-beats/${sanitizedTitle}/image/${file.originalname}`; break;
+      case 'tagged_mp3':  storagePath = `beats/${year}-beats/${sanitizedTitle}/tagged/${file.originalname}`; break;
+      case 'basic_mp3':   storagePath = `beats/${year}-beats/${sanitizedTitle}/basic/${file.originalname}`; break;
+      case 'premium_zip': storagePath = `beats/${year}-beats/${sanitizedTitle}/premium/${file.originalname}`; break;
+      case 'pro_zip':     storagePath = `beats/${year}-beats/${sanitizedTitle}/stems/${file.originalname}`; break;
+      default: return res.status(400).json({ error: 'Invalid file type.' });
     }
 
-    const params = {
-      Bucket: process.env.AWS_S3_BUCKET, // birdiebands-media-s3
-      Key: s3Key,
-      Body: file.buffer,
-      ContentType: file.mimetype,
-    };
-    console.log('Uploading to S3:', { Bucket: params.Bucket, Key: params.Key });
-    const command = new PutObjectCommand(params);
-    await s3.send(command);
+    const { error } = await supabase.storage
+      .from('beats')
+      .upload(storagePath, file.buffer, { contentType: file.mimetype, upsert: true });
 
-    // Return the S3 URI
-    const s3Url = `s3://${process.env.AWS_S3_BUCKET}/${s3Key}`;
-    console.log(s3Url, 's3Url');
-    res.json({ url: s3Url });
+    if (error) throw error;
+
+    res.json({ url: storagePath });
   } catch (error) {
     console.error('Upload error:', error);
-    res
-      .status(500)
-      .json({ error: error.message || 'Failed to upload file to S3.' });
+    res.status(500).json({ error: error.message || 'Failed to upload file.' });
   }
 });
 
-// Create beat endpoint
+// ─── POST /api/beat ───────────────────────────────────────────────────────────
 router.post('/beat', async (req, res) => {
   try {
-    const {
-      title,
-      artist,
-      duration,
-      bpm,
-      key,
-      tags,
-      s3_mp3_url,
-      s3_image_url,
-      licenses,
-      available,
-      type,
-      youtube_url,
-    } = req.body;
-    //localhost:3001/api/beat
+    const { title, artist, duration, bpm, key, tags, s3_mp3_url, s3_image_url, licenses, available, type, youtube_url } = req.body;
 
-    // Validate required fields
-    http: if (
-      !title ||
-      !artist ||
-      !duration ||
-      !bpm ||
-      !key ||
-      !s3_mp3_url ||
-      !s3_image_url ||
-      !licenses
-    ) {
-      console.log('Validation failed: Missing required fields');
+    if (!title || !artist || !duration || !bpm || !key || !s3_mp3_url || !s3_image_url || !licenses) {
       return res.status(400).json({ error: 'Missing required fields.' });
     }
 
-    // Validate licenses
-    const validLicenseTypes = [
-      'Basic',
-      'Premium',
-      'Professional',
-      'Legacy',
-      'Exclusive',
-    ];
+    const validLicenseTypes = ['Basic', 'Premium', 'Professional', 'Legacy', 'Exclusive'];
     const hasValidLicenses = licenses.every(
-      (license) =>
-        validLicenseTypes.includes(license.type) &&
-        license.price >= 0 &&
-        license.currency === 'USD' &&
-        license.description &&
-        (license.type === 'Basic' ||
-          license.type === 'Premium' ||
-          license.s3_file_url),
+      (l) => validLicenseTypes.includes(l.type) && l.price >= 0 && l.currency === 'USD' && l.description &&
+             (l.type === 'Basic' || l.type === 'Premium' || l.s3_file_url)
     );
+    if (!hasValidLicenses) return res.status(400).json({ error: 'Invalid license configuration.' });
 
-    if (!hasValidLicenses) {
-      return res.status(400).json({ error: 'Invalid license configuration.' });
-    }
-    if (
-      youtube_url !== undefined &&
-      youtube_url !== null &&
-      typeof youtube_url !== 'string'
-    ) {
-      console.log('Validation failed: Invalid format for youtube_url');
+    if (youtube_url !== undefined && youtube_url !== null && typeof youtube_url !== 'string') {
       return res.status(400).json({ error: 'Invalid format for youtube_url.' });
     }
 
-    // Create new beat
-    const newBeat = new Beat({
-      title,
-      artist,
-      duration,
-      bpm,
-      key,
-      tags: tags || [],
-      s3_mp3_url,
-      s3_image_url,
-      licenses,
-      available: available !== undefined ? available : true,
-      type: type || 'Beat',
-      youtube_url: youtube_url || null,
-      created_at: new Date(),
-    });
+    const { data: beat, error } = await supabase
+      .from('beats')
+      .insert({
+        title, artist, duration,
+        bpm: parseInt(bpm),
+        key,
+        tags: tags || [],
+        s3_mp3_url, s3_image_url, licenses,
+        available: available !== undefined ? available : true,
+        type: type || 'Beat',
+        youtube_url: youtube_url || null,
+        created_at: new Date().toISOString(),
+      })
+      .select()
+      .single();
 
-    await newBeat.save();
-    res.status(201).json(newBeat);
+    if (error) throw error;
+    res.status(201).json(beat);
   } catch (error) {
-    console.error('Create beat error:', {
-      message: error.message,
-      stack: error.stack,
-    });
+    console.error('Create beat error:', error);
     res.status(500).json({ error: error.message || 'Failed to create beat.' });
   }
 });
 
-// Update beat endpoint
+// ─── PUT /api/beat ────────────────────────────────────────────────────────────
 router.put('/beat', async (req, res) => {
   try {
     const beatId = req.query.beatId;
-    console.log(
-      'PUT /beat called with beatId:',
-      beatId,
-      'body:',
-      JSON.stringify(req.body, null, 2),
-    );
+    if (!beatId) return res.status(400).json({ error: 'Invalid or missing beatId.' });
 
-    if (!beatId || !mongoose.Types.ObjectId.isValid(beatId)) {
-      console.log('Validation failed: Invalid or missing beatId');
-      return res.status(400).json({ error: 'Invalid or missing beatId.' });
-    }
+    const { title, artist, duration, bpm, key, tags, s3_mp3_url, s3_image_url, licenses, available, type, youtube_url } = req.body;
 
-    const {
-      title,
-      artist,
-      duration,
-      bpm,
-      key,
-      tags,
-      s3_mp3_url,
-      s3_image_url,
-      licenses,
-      available,
-      type,
-      youtube_url,
-    } = req.body;
-
-    // Validate required fields
-    if (
-      !title ||
-      !artist ||
-      !duration ||
-      !bpm ||
-      !key ||
-      !s3_mp3_url ||
-      !s3_image_url ||
-      !licenses
-    ) {
-      console.log('Validation failed: Missing required fields');
+    if (!title || !artist || !duration || !bpm || !key || !s3_mp3_url || !s3_image_url || !licenses) {
       return res.status(400).json({ error: 'Missing required fields.' });
     }
 
-    // Validate licenses
-    const validLicenseTypes = [
-      'Basic',
-      'Premium',
-      'Professional',
-      'Legacy',
-      'Exclusive',
-    ];
+    const validLicenseTypes = ['Basic', 'Premium', 'Professional', 'Legacy', 'Exclusive'];
     const hasValidLicenses = licenses.every(
-      (license) =>
-        validLicenseTypes.includes(license.type) &&
-        license.price >= 0 &&
-        license.currency === 'USD' &&
-        license.description &&
-        (license.type === 'Basic' ||
-          license.type === 'Premium' ||
-          license.s3_file_url),
+      (l) => validLicenseTypes.includes(l.type) && l.price >= 0 && l.currency === 'USD' && l.description &&
+             (l.type === 'Basic' || l.type === 'Premium' || l.s3_file_url)
     );
+    if (!hasValidLicenses) return res.status(400).json({ error: 'Invalid license configuration.' });
 
-    if (!hasValidLicenses) {
-      console.log('Validation failed: Invalid license configuration');
-      return res.status(400).json({ error: 'Invalid license configuration.' });
-    }
-
-    // ➡️ 2. OPTIONAL VALIDATION for the link
-    // A simple check to ensure if a link is provided, it's a string.
     if (youtube_url && typeof youtube_url !== 'string') {
       return res.status(400).json({ error: 'Invalid format for youtube_url.' });
     }
 
-    // Update beat
-    const updateData = {
-      title,
-      artist,
-      duration,
-      bpm,
-      key,
-      tags: tags || [],
-      s3_mp3_url,
-      s3_image_url,
-      licenses,
-      available: available !== undefined ? available : true,
-      type: type || 'Beat',
-      youtube_url: youtube_url,
-      updated_at: new Date(),
-    };
+    const { data: updatedBeat, error } = await supabase
+      .from('beats')
+      .update({
+        title, artist, duration,
+        bpm: parseInt(bpm),
+        key,
+        tags: tags || [],
+        s3_mp3_url, s3_image_url, licenses,
+        available: available !== undefined ? available : true,
+        type: type || 'Beat',
+        youtube_url: youtube_url ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', beatId)
+      .select()
+      .single();
 
-    const updatedBeat = await Beat.findByIdAndUpdate(
-      beatId,
-      { $set: updateData },
-      { new: true, runValidators: true },
-    );
+    if (error) throw error;
+    if (!updatedBeat) return res.status(404).json({ error: 'Beat not found.' });
 
-    if (!updatedBeat) {
-      console.log('Beat not found:', beatId);
-      return res.status(404).json({ error: 'Beat not found.' });
-    }
-
-    console.log('Beat updated successfully:', updatedBeat._id);
     res.status(200).json(updatedBeat);
   } catch (error) {
-    console.error('Update beat error:', {
-      message: error.message,
-      stack: error.stack,
-    });
+    console.error('Update beat error:', error);
     res.status(500).json({ error: error.message || 'Failed to update beat.' });
   }
 });
 
-// Get beat endpoint (for fetching beat data)
+// ─── GET /api/beat (admin preview with signed URLs) ───────────────────────────
 router.get('/beat', async (req, res) => {
   try {
-    const beatId = req.query.beatId;
-    if (!beatId || !mongoose.Types.ObjectId.isValid(beatId)) {
-      return res.status(400).json({ error: 'Invalid or missing beatId.' });
-    }
-    let beatTagged = null;
-    let imagePreview = null;
+    const { beatId } = req.query;
+    if (!beatId) return res.status(400).json({ error: 'Invalid or missing beatId.' });
 
-    const beat = await Beat.findById(beatId);
-    // Add presigned URLs for previews and images and put license.s3_file_ur null
-    const mp3Key = beat.s3_mp3_url.startsWith('s3://')
-      ? beat.s3_mp3_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-      : beat.s3_mp3_url;
-    const imageKey = beat.s3_image_url?.startsWith('s3://')
-      ? beat.s3_image_url.replace(`s3://${process.env.AWS_S3_BUCKET}/`, '')
-      : beat.s3_image_url;
-    if (beat.s3_mp3_url) {
-      beatTagged = await getPresignedUrl(mp3Key, 3600 * 24 * 7); // 7 days
-    }
-    if (beat.s3_image_url) {
-      imagePreview = imageKey
-        ? await getPresignedUrl(imageKey, 3600 * 24 * 7) // 7 days
-        : null; // 7 days
-    }
-    if (!beat) {
-      return res.status(404).json({ error: 'Beat not found.' });
-    }
-    console.log('Beat fetched successfully:', beat);
+    const { data: beat, error } = await supabase.from('beats').select('*').eq('id', beatId).single();
+    if (error || !beat) return res.status(404).json({ error: 'Beat not found.' });
 
-    // Combine all data into a single object
-    const responseData = {
-      beat: beat,
-      beatTagged: beatTagged,
-      imagePreview: imagePreview,
+    const sign = async (path) => {
+      if (!path) return null;
+      const clean = path.startsWith('s3://') ? path.replace(/^s3:\/\/[^/]+\//, '') : path;
+      const { data } = await supabase.storage.from('beats').createSignedUrl(clean, 3600 * 24 * 7);
+      return data?.signedUrl ?? null;
     };
 
-    res.status(200).json(responseData);
-  } catch (error) {
-    console.error('Get beat error:', {
-      message: error.message,
-      stack: error.stack,
+    res.status(200).json({
+      beat,
+      beatTagged: await sign(beat.s3_mp3_url),
+      imagePreview: await sign(beat.s3_image_url),
     });
+  } catch (error) {
+    console.error('Get beat error:', error);
     res.status(500).json({ error: error.message || 'Failed to fetch beat.' });
   }
 });
 
-// / ************************************************/
-// / UPDATE BEAT PRICES 💸💸💸
-// / ************************************************/
-// PUT /api/beat/bulk-update-prices
+// ─── PUT /api/bulk-update-prices ──────────────────────────────────────────────
 router.put('/bulk-update-prices', async (req, res) => {
   try {
-    const { prices } = req.body; // expect { Basic: 34.99, Premium: 49.99, ... }
-
+    const { prices } = req.body;
     if (!prices || typeof prices !== 'object') {
       return res.status(400).json({ error: 'prices object is required' });
     }
 
-    const validTypes = [
-      'Basic',
-      'Premium',
-      'Professional',
-      'Legacy',
-      'Exclusive',
-    ];
-    const updateOps = [];
-
-    for (const [type, newPrice] of Object.entries(prices)) {
+    const validTypes = ['Basic', 'Premium', 'Professional', 'Legacy', 'Exclusive'];
+    for (const [type, price] of Object.entries(prices)) {
       if (!validTypes.includes(type)) continue;
-      if (typeof newPrice !== 'number' || newPrice < 0) {
+      if (typeof price !== 'number' || price < 0) {
         return res.status(400).json({ error: `Invalid price for ${type}` });
       }
-
-      updateOps.push({
-        updateMany: {
-          filter: { 'licenses.type': type },
-          update: { $set: { 'licenses.$[elem].price': newPrice } },
-          arrayFilters: [{ 'elem.type': type }],
-        },
-      });
     }
 
-    if (updateOps.length === 0) {
-      return res.status(400).json({ error: 'No valid license types provided' });
-    }
+    const { error } = await supabase.rpc('bulk_update_beat_license_prices', { prices });
+    if (error) throw error;
 
-    // Execute bulk write (more efficient than many separate updateMany calls)
-    const result = await Beat.bulkWrite(updateOps, { ordered: false });
-
-    res.json({
-      message: 'Prices updated successfully',
-      matched: result.matchedCount,
-      modified: result.modifiedCount,
-      upserted: result.upsertedCount,
-    });
+    res.json({ message: 'Prices updated successfully' });
   } catch (err) {
-    console.error(err);
+    console.error('Bulk price update error:', err);
     res.status(500).json({ error: 'Server error during bulk update' });
   }
 });
+
 export default router;

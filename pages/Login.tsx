@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { IconHome } from '@tabler/icons-react';
 import { Link } from 'react-router-dom';
 const Login = () => {
-  document.title = `Birdie Bands | Admin Login`;
+  document.title = `KUSHAWN | Admin Login`;
   return (
     <div className="bg-background z-50 relative flex min-h-svh flex-col items-center justify-center gap-6 p-6 md:p-10">
       <video

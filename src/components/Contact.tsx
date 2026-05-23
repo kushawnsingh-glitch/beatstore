@@ -29,17 +29,17 @@ const Contact = ({ fullscreen }: { fullscreen?: boolean }) => {
     setRecaptchaToken(token);
   };
 
-  document.title = `Birdie Bands | Contact`;
+  document.title = `KUSHAWN | Contact`;
 
   const baseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
   // const apiBaseUrl =
   //   import.meta.env.VITE_API_BASE_URL_BACKEND || 'https://api.birdiebands.com'; // Fallback API URL
   const canonicalUrl = `${baseUrl}/contact`;
-  const title = 'Contact | Birdie Bands';
+  const title = 'Contact | KUSHAWN';
   const description =
-    'Get in touch with Birdie Bands for inquiries about type beats, licenses, or support. Reach out via our contact form.';
+    'Get in touch with KUSHAWN for inquiries about type beats, licenses, or support. Reach out via our contact form.';
   const keywords =
-    'contact, music production, type beats, Birdie Bands, support';
+    'contact, music production, type beats, KUSHAWN, support';
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -132,7 +132,7 @@ const Contact = ({ fullscreen }: { fullscreen?: boolean }) => {
         <meta property="og:image" content={BirdieLogo} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Birdie Bands" />
+        <meta property="og:site_name" content="KUSHAWN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
@@ -146,7 +146,7 @@ const Contact = ({ fullscreen }: { fullscreen?: boolean }) => {
             description: description,
             publisher: {
               '@type': 'Organization',
-              name: 'Birdie Bands',
+              name: 'KUSHAWN',
               logo: {
                 '@type': 'ImageObject',
                 url: BirdieLogo,

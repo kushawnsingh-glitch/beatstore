@@ -2,14 +2,36 @@
 import { motion } from 'framer-motion';
 import TiltedCard from './ui/ReactBits/TitledCard';
 import { useNavigate } from 'react-router-dom';
-import Gunna from '../../src/Images/artist/gunna1.gif';
-import Larry from '../../src/Images/artist/june.gif';
-import KeyGlock from '../../src/Images/artist/key.gif';
+import TablaImage from '../Images/tabla.jpg';
+
+const instrumentals = [
+  {
+    label: 'Acoustic Guitar',
+    search: 'Acoustic Guitar',
+    imageSrc: 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=400&h=400&fit=crop&q=80',
+    alt: 'Acoustic Guitar Instrumentals',
+  },
+  {
+    label: 'Tabla',
+    search: 'Tabla',
+    imageSrc: TablaImage,
+    alt: 'Tabla Instrumentals',
+  },
+  {
+    label: 'Piano',
+    search: 'Piano',
+    imageSrc: 'https://images.unsplash.com/photo-1520523839897-bd0b52f945a0?w=400&h=400&fit=crop&q=80',
+    alt: 'Piano Instrumentals',
+  },
+];
+
 const Artists = ({ size }: { size: string }) => {
   const navigate = useNavigate();
+
   const handleCardClick = (term: string) => {
-    navigate(`/beats?search=${encodeURIComponent(term)}`); // Navigates to the '/dashboard' route
+    navigate(`/beats?search=${encodeURIComponent(term)}`);
   };
+
   return (
     <>
       <motion.div
@@ -19,80 +41,35 @@ const Artists = ({ size }: { size: string }) => {
         className="flex flex-col gap-12"
       >
         <div>
-          <h2 className={`font-bold ${size}`}>Artist Type Beats</h2>
+          <h2 className={`font-bold ${size}`}>Instrumentals</h2>
           <p className="text-sm text-gray-500 mt-1">
-            Tap an image to explore beats inspired by your favorite artists.
+            Tap an image to explore instrumentals by style.
           </p>
         </div>
         <div className="flex gap-24 flex-wrap justify-center z-10">
-          <div onClick={() => handleCardClick('Key Glock')}>
-            <TiltedCard
-              // imageSrc="https://i.pinimg.com/736x/a2/3b/a7/a23ba7a9cdb5d504d7e847f6bcbada7b.jpg"
-              // imageSrc="https://archive.illroots.com/uploads/articles/48213/image/1528414779/search_results.gif?1528416975"
-              imageSrc={KeyGlock}
-              altText="Key Glock Type Beats"
-              captionText="Key Glock Type Beats"
-              containerHeight="300px"
-              containerWidth="300px"
-              imageHeight="300px"
-              imageWidth="300px"
-              rotateAmplitude={12}
-              scaleOnHover={1.2}
-              showMobileWarning={false}
-              showTooltip={true}
-              displayOverlayContent={true}
-              overlayContent={
-                <p className="bg-background/50 m-6 p-3 rounded-2xl font-bold">
-                  Key Glock Type Beats
-                </p>
-              }
-            />
-          </div>
-          <div onClick={() => handleCardClick('Larry June')}>
-            <TiltedCard
-              // imageSrc="https://i.pinimg.com/736x/d4/bd/5c/d4bd5cc9eefe2ca4859d21345429bc90.jpg"
-              imageSrc={Larry}
-              altText="Larry June Type Beats"
-              captionText="Larry June Type Beats"
-              containerHeight="300px"
-              containerWidth="300px"
-              imageHeight="300px"
-              imageWidth="300px"
-              rotateAmplitude={12}
-              scaleOnHover={1.2}
-              showMobileWarning={false}
-              showTooltip={true}
-              displayOverlayContent={true}
-              overlayContent={
-                <p className="bg-background/50 m-6 p-3 rounded-2xl font-bold">
-                  Larry June Type Beats
-                </p>
-              }
-            />
-          </div>
-
-          <div onClick={() => handleCardClick('Gunna')}>
-            <TiltedCard
-              // imageSrc="https://i.pinimg.com/736x/7f/05/ae/7f05ae439f3695ca4626c2d104d48e67.jpg"
-              imageSrc={Gunna}
-              altText="Gunna Type Beats"
-              captionText="Gunna Type Beats"
-              containerHeight="300px"
-              containerWidth="300px"
-              imageHeight="300px"
-              imageWidth="300px"
-              rotateAmplitude={12}
-              scaleOnHover={1.2}
-              showMobileWarning={false}
-              showTooltip={true}
-              displayOverlayContent={true}
-              overlayContent={
-                <p className="bg-background/50 m-6 p-3 rounded-2xl font-bold">
-                  Gunna Type Beats
-                </p>
-              }
-            />
-          </div>
+          {instrumentals.map(({ label, search, imageSrc, alt }) => (
+            <div key={label} onClick={() => handleCardClick(search)}>
+              <TiltedCard
+                imageSrc={imageSrc}
+                altText={alt}
+                captionText={`${label} Instrumentals`}
+                containerHeight="300px"
+                containerWidth="300px"
+                imageHeight="300px"
+                imageWidth="300px"
+                rotateAmplitude={12}
+                scaleOnHover={1.2}
+                showMobileWarning={false}
+                showTooltip={true}
+                displayOverlayContent={true}
+                overlayContent={
+                  <p className="bg-background/50 m-6 p-3 rounded-2xl font-bold">
+                    {label} Instrumentals
+                  </p>
+                }
+              />
+            </div>
+          ))}
         </div>
       </motion.div>
     </>

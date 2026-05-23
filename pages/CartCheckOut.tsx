@@ -33,7 +33,7 @@ declare global {
 }
 
 const CartCheckOut = ({ size }: { size: string }) => {
-  document.title = `Birdie Bands | Checkout`;
+  document.title = `KUSHAWN | Checkout`;
   // const { items, removeFromCart, totalPrice } = useCart();
   const { items, removeFromCart, originalTotal, bogoDiscount, totalPrice } =
     useCart(); // Updated to use new context values
@@ -49,6 +49,7 @@ const CartCheckOut = ({ size }: { size: string }) => {
   const [couponDiscount, setCouponDiscount] = useState(0); // Added for coupon discount amount
   const [finalTotal, setFinalTotal] = useState(0); // Added for final total after all discounts
   const [isCartDataReady, setIsCartDataReady] = useState(false);
+  const [subscribeToNewsletter, setSubscribeToNewsletter] = useState(false);
 
   const { theme } = useTheme();
 
@@ -217,7 +218,8 @@ const CartCheckOut = ({ size }: { size: string }) => {
             cartItems,
             customerInfo,
             couponCode: appliedCoupon ? couponCode : null,
-          }), // Added couponCode
+            subscribeToNewsletter,
+          }),
         }
       );
       const { sessionId, error } = await response.json();
@@ -469,7 +471,20 @@ const CartCheckOut = ({ size }: { size: string }) => {
                   <Edit className="w-4 h-4 mr-2" /> Edit Info
                 </Button>
               </div>
-              {/* Added: Coupon input field and apply/remove buttons */}
+              {/* Newsletter opt-in */}
+              <label className="flex items-start gap-3 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={subscribeToNewsletter}
+                  onChange={(e) => setSubscribeToNewsletter(e.target.checked)}
+                  className="mt-1 w-4 h-4 rounded accent-green-500 cursor-pointer shrink-0"
+                />
+                <span className="text-sm text-foreground/70 group-hover:text-foreground transition-colors">
+                  Stay connected — get updates on new beats, exclusives, and releases
+                </span>
+              </label>
+
+              {/* Coupon input field and apply/remove buttons */}
               <div className="flex items-center gap-2">
                 <Input
                   value={couponCode}
@@ -568,9 +583,8 @@ const CartCheckOut = ({ size }: { size: string }) => {
                                     body: JSON.stringify({
                                       cartItems,
                                       customerInfo,
-                                      couponCode: appliedCoupon
-                                        ? couponCode
-                                        : null, // Added couponCode
+                                      couponCode: appliedCoupon ? couponCode : null,
+                                      subscribeToNewsletter,
                                     }),
                                     // body: JSON.stringify({
                                     //   cartItems,

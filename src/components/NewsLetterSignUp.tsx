@@ -18,15 +18,15 @@ const NewsLetterSignUp = ({ fullscreen }: { fullscreen?: boolean }) => {
   const [subscribed, setSubscribed] = useState(false);
   const { theme } = useTheme();
 
-  document.title = `Birdie Bands | Newsletter Signup`;
+  document.title = `KUSHAWN | Newsletter Signup`;
 
   const baseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
   const canonicalUrl = `${baseUrl}/newsletter`;
-  const title = 'Newsletter Signup | Birdie Bands';
+  const title = 'Newsletter Signup | KUSHAWN';
   const description =
-    'Join the Birdie Bands newsletter for exclusive access to new type beats, music production tips, and special offers.';
+    'Join the KUSHAWN newsletter for exclusive access to new type beats, music production tips, and special offers.';
   const keywords =
-    'newsletter, music production, type beats, Birdie Bands, exclusive beats, music updates';
+    'newsletter, music production, type beats, KUSHAWN, exclusive beats, music updates';
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -108,7 +108,7 @@ const NewsLetterSignUp = ({ fullscreen }: { fullscreen?: boolean }) => {
         <meta property="og:image" content={BirdieLogo} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Birdie Bands" />
+        <meta property="og:site_name" content="KUSHAWN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
@@ -122,7 +122,7 @@ const NewsLetterSignUp = ({ fullscreen }: { fullscreen?: boolean }) => {
             description: description,
             publisher: {
               '@type': 'Organization',
-              name: 'Birdie Bands',
+              name: 'KUSHAWN',
               logo: {
                 '@type': 'ImageObject',
                 url: BirdieLogo,
@@ -142,7 +142,7 @@ const NewsLetterSignUp = ({ fullscreen }: { fullscreen?: boolean }) => {
         <h2 className="font-bold text-2xl">Join Our Newsletter</h2>
         <p className="mt-2 max-w-sm text-sm text-neutral-600 dark:text-neutral-300">
           Get exclusive access to new type beats, production tips, and special
-          offers from Birdie Bands.
+          offers from KUSHAWN.
         </p>
 
         <form className="my-8 !text-start" onSubmit={handleSubmit}>
@@ -202,7 +202,7 @@ const NewsLetterSignUp = ({ fullscreen }: { fullscreen?: boolean }) => {
                   theme === 'dark' ? 'text-gray-300' : 'text-gray-600'
                 }`}
               >
-                I agree to receive newsletters and updates from Birdie Bands
+                I agree to receive newsletters and updates from KUSHAWN
               </Label>
             </div>
             <Label

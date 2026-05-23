@@ -1,8 +1,5 @@
-import BirdieLogo from '/src/Images/logo.png';
-import { FaCcVisa } from 'react-icons/fa';
-import { FaCcMastercard } from 'react-icons/fa';
-import { FaCcPaypal } from 'react-icons/fa';
-import { FaCcStripe } from 'react-icons/fa';
+import KushawnLogo from '/src/Images/kushawn-logo.png';
+import { FaCcVisa, FaCcMastercard, FaCcPaypal, FaCcStripe, FaYoutube, FaInstagram } from 'react-icons/fa';
 import { NavLink } from 'react-router';
 
 const Footer = () => {
@@ -18,9 +15,9 @@ const Footer = () => {
               className="flex items-center mb-4 sm:mb-0 space-x-3 rtl:space-x-reverse"
             >
               <img
-                src={BirdieLogo}
+                src={KushawnLogo}
                 className="h-8 translate-y-1"
-                alt="Birdie Logo"
+                alt="KUSHAWN Logo"
               />
             </NavLink>
             <ul className="flex flex-wrap items-center mb-6 text-sm font-medium  max-sm:justify-center sm:mb-0">
@@ -101,6 +98,28 @@ const Footer = () => {
               </li> */}
             </ul>
           </div>
+          {/* Social links */}
+          <div className="flex justify-center gap-6 my-6">
+            <a
+              href="https://www.youtube.com/kushawn"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="!text-foreground/50 hover:!text-red-500 !transition-colors !duration-300"
+              aria-label="YouTube"
+            >
+              <FaYoutube size={22} />
+            </a>
+            <a
+              href="https://www.instagram.com/kushawn"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="!text-foreground/50 hover:!text-pink-400 !transition-colors !duration-300"
+              aria-label="Instagram"
+            >
+              <FaInstagram size={22} />
+            </a>
+          </div>
+
           <hr className="my-6 border-foreground sm:mx-auto dark:border-foreground/30 lg:my-8" />
           <span className="block text-sm text-gray-500 sm:text-center dark:text-gray-400">
             © {currentYear}{' '}
@@ -109,7 +128,7 @@ const Footer = () => {
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
               className="!text-foreground hover:underline !p-0 !m-0 !bg-transparent hover:!bg-transparent !transition-all !duration-300"
             >
-              Birdie Bands™
+              KUSHAWN™
             </button>
             . All Rights Reserved.
           </span>

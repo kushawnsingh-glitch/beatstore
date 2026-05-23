@@ -162,14 +162,8 @@ const AdminCreateBeat = () => {
           if (!formData.title) {
             throw new Error('Title is required for file uploads.');
           }
-          if (
-            !imageFile ||
-            !taggedFile ||
-            !basicFile ||
-            !premiumFile ||
-            !proFile
-          ) {
-            throw new Error('All files must be selected.');
+          if (!imageFile || !taggedFile || !basicFile) {
+            throw new Error('Artwork, Tagged MP3, and Basic MP3 are required.');
           }
 
           const imageUrl = await uploadFile(imageFile, 'image', formData.title);
@@ -189,15 +183,13 @@ const AdminCreateBeat = () => {
           );
           if (!basicUrl) throw new Error('Basic MP3 upload failed');
 
-          const premiumUrl = await uploadFile(
-            premiumFile,
-            'premium_zip',
-            formData.title,
-          );
-          if (!premiumUrl) throw new Error('Premium MP3 upload failed');
+          const premiumUrl = premiumFile
+            ? await uploadFile(premiumFile, 'premium_zip', formData.title)
+            : null;
 
-          const proUrl = await uploadFile(proFile, 'pro_zip', formData.title);
-          if (!proUrl) throw new Error('Professional ZIP upload failed');
+          const proUrl = proFile
+            ? await uploadFile(proFile, 'pro_zip', formData.title)
+            : null;
 
           const licenses = [
             {
@@ -205,92 +197,97 @@ const AdminCreateBeat = () => {
               price: licensePrices.Basic,
               currency: 'USD',
               description:
-                'Basic License includes MP3 format, non-exclusive rights, distribution up to 2,500 copies, 1 music video, and producer tag removal.',
+                'Basic License includes MP3 format, non-exclusive rights, up to 500,000 streams, unlimited music video views, and non-profit live performances.',
               s3_file_url: basicUrl,
               features: [
-                'MP3 Format',
+                'MP3 Format (320kbps)',
                 'Non-Exclusive Rights',
-                'Distribute up to 2,500 copies',
-                'Up to 50,000 Online Audio Streams',
-                '1 Music Video',
-                'Basic Distribution Rights',
-                'Producer Tag Removed',
+                'Up to 500,000 Total Streams',
+                'Unlimited Music Video Views',
+                'Non-Profit Live Performances',
+                'Producer Credit Required',
               ],
             },
-            {
-              type: 'Premium',
-              price: licensePrices.Premium,
-              currency: 'USD',
-              description:
-                'Premium License includes WAV + MP3 format, expanded distribution rights, live performances, and limited radio rights.',
-              s3_file_url: premiumUrl,
-              features: [
-                'WAV + MP3 Format',
-                'Non-Exclusive Rights',
-                'Distribute up to 5,000 copies',
-                'Up to 100,000 Online Audio Streams',
-                '1 Music Video',
-                'For Profit Live Performances',
-                'Radio Broadcasting rights (2 Stations)',
-                'Producer Tag Removed',
-              ],
-            },
-            {
-              type: 'Professional',
-              price: licensePrices.Professional,
-              currency: 'USD',
-              description:
-                'Professional License includes stems, large-scale streaming capacity, live and radio rights, and distribution up to 10,000 units.',
-              s3_file_url: proUrl,
-              features: [
-                'WAV + MP3 Format',
-                'Trackout Stems Included',
-                'Distribute up to 10,000 copies',
-                'Up to 1,000,000 Online Audio Streams',
-                '1 Music Video',
-                'For Profit Live Performances',
-                'Radio Broadcasting rights (2 Stations)',
-                'Producer Tag Removed',
-              ],
-            },
-            {
-              type: 'Legacy',
-              price: licensePrices.Legacy,
-              currency: 'USD',
-              description:
-                'Legacy License offers unrestricted use across all platforms and unlimited media coverage.',
-              s3_file_url: proUrl,
-              features: [
-                'WAV + MP3 Format',
-                'Trackout Stems Included',
-                'Distribute Unlimited copies',
-                'Unlimited Online Audio Streams',
-                'Unlimited Music Videos',
-                'For Profit Live Performances',
-                'Radio Broadcasting rights (UNLIMITED Stations)',
-                'Producer Tag Removed',
-              ],
-            },
-            {
-              type: 'Exclusive',
-              price: licensePrices.Exclusive,
-              currency: 'USD',
-              description:
-                'Exclusive License grants complete ownership, full monetization, and contractual rights for global usage.',
-              s3_file_url: proUrl,
-              features: [
-                'WAV + MP3 Format',
-                'Trackout Stems Included',
-                'Distribute Unlimited copies',
-                'Unlimited Online Audio Streams',
-                'Unlimited Music Videos',
-                'For Profit Live Performances',
-                'Radio Broadcasting rights (UNLIMITED Stations)',
-                'Producer Tag Removed',
-                'Full Commercial Rights',
-                'Receive Signed Contract',
-              ],
-            },
+            ...(premiumUrl
+              ? [
+                  {
+                    type: 'Premium',
+                    price: licensePrices.Premium,
+                    currency: 'USD',
+                    description:
+                      'Premium License includes WAV + MP3 format, expanded distribution rights, live performances, and limited radio rights.',
+                    s3_file_url: premiumUrl,
+                    features: [
+                      'WAV + MP3 Format',
+                      'Non-Exclusive Rights',
+                      'Distribute up to 5,000 copies',
+                      'Up to 100,000 Online Audio Streams',
+                      '1 Music Video',
+                      'For Profit Live Performances',
+                      'Radio Broadcasting rights (2 Stations)',
+                      'Producer Tag Removed',
+                    ],
+                  },
+                ]
+              : []),
+            ...(proUrl
+              ? [
+                  {
+                    type: 'Professional',
+                    price: licensePrices.Professional,
+                    currency: 'USD',
+                    description:
+                      'Professional License includes WAV + stems, unlimited streams, radio broadcasting, and independent sync rights.',
+                    s3_file_url: proUrl,
+                    features: [
+                      'WAV + MP3 Format',
+                      'Full Trackout Stems',
+                      'Unlimited Streams + Distribution',
+                      'Radio Broadcasting Rights',
+                      'Sync for Independent Film/Video',
+                      'Producer Credit Required',
+                    ],
+                  },
+                  {
+                    type: 'Legacy',
+                    price: licensePrices.Legacy,
+                    currency: 'USD',
+                    description:
+                      'Legacy License offers unrestricted use across all platforms and unlimited media coverage.',
+                    s3_file_url: proUrl,
+                    features: [
+                      'WAV + MP3 Format',
+                      'Trackout Stems Included',
+                      'Distribute Unlimited copies',
+                      'Unlimited Online Audio Streams',
+                      'Unlimited Music Videos',
+                      'For Profit Live Performances',
+                      'Radio Broadcasting rights (UNLIMITED Stations)',
+                      'Producer Tag Removed',
+                    ],
+                  },
+                  {
+                    type: 'Exclusive',
+                    price: licensePrices.Exclusive,
+                    currency: 'USD',
+                    description:
+                      'Exclusive License grants complete ownership, full monetization, and contractual rights for global usage.',
+                    s3_file_url: proUrl,
+                    features: [
+                      'WAV + MP3 Format',
+                      'Trackout Stems Included',
+                      'Distribute Unlimited copies',
+                      'Unlimited Online Audio Streams',
+                      'Unlimited Music Videos',
+                      'For Profit Live Performances',
+                      'Radio Broadcasting rights (UNLIMITED Stations)',
+                      'Producer Tag Removed',
+                      'Full Commercial Rights',
+                      'Receive Signed Contract',
+                    ],
+                  },
+                ]
+              : []),
           ];
 
           const submitData = {
@@ -556,7 +553,7 @@ const AdminCreateBeat = () => {
               {' '}
               {/* Tagged MP3 */}
               <div className="space-y-2">
-                <Label htmlFor="tagged">Tagged MP3 (Preview)</Label>
+                <Label htmlFor="tagged">Tagged MP3 — Preview with producer tag <span className="text-red-400">*</span></Label>
                 {/* <Input
                 id="tagged"
                 type="file"
@@ -583,7 +580,7 @@ const AdminCreateBeat = () => {
               </div>
               {/* Basic MP3 */}
               <div className="space-y-2">
-                <Label htmlFor="basic">Basic Lease MP3</Label>
+                <Label htmlFor="basic">Basic Lease MP3 — Clean, no tag <span className="text-red-400">*</span></Label>
                 {/* <Input
                 id="basic"
                 type="file"
@@ -610,7 +607,7 @@ const AdminCreateBeat = () => {
               </div>
               {/* Premium MP3 */}
               <div className="space-y-2">
-                <Label htmlFor="premium">Premium Lease MP3 + WAV</Label>
+                <Label htmlFor="premium">Premium Lease ZIP — MP3 + WAV <span className="text-foreground/40 font-normal">(optional)</span></Label>
                 {/* <Input
                 id="premium"
                 type="file"
@@ -643,7 +640,7 @@ const AdminCreateBeat = () => {
               {/* STEMS ZIP */}
               <div className="space-y-2">
                 <Label htmlFor="pro">
-                  STEMS ZIP (For Professional, Legacy & Exclusive)
+                  Stems ZIP — Professional, Legacy & Exclusive <span className="text-foreground/40 font-normal">(optional)</span>
                 </Label>
                 {/* <Input
                 id="pro"

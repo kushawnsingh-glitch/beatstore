@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import authorImage from '../Images/birdie-in-studio.jpg';
+import authorImage from '../Images/kushawn-photo2.jpg';
 import { Link, useNavigate } from 'react-router-dom';
 import TextType from './ui/ReactBits/TextType ';
 import { IconLogin2 } from '@tabler/icons-react';
@@ -79,7 +79,7 @@ export function LoginForm({
             <Link to="/" className="flex flex-col items-center gap-2">
               <Avatar className="h-32 w-32 border hover:brightness-[0.7] transition duration-300">
                 <AvatarImage src={authorImage} />
-                <AvatarFallback>{`Birdie Bands`}</AvatarFallback>
+                <AvatarFallback>{`KUSHAWN`}</AvatarFallback>
               </Avatar>
               {/* <h1 className="!text-xl font-bold !text-foreground">
                 Welcome back, Birdie ✨
@@ -87,8 +87,8 @@ export function LoginForm({
               <TextType
                 className="!text-xl font-bold !text-foreground"
                 text={[
-                  'Welcome back, Birdie ✨',
-                  'Login to your account',
+                  'Welcome back, Kushawn ✨',
+                  'Admin Dashboard',
                   'Lets get this money 💸',
                 ]}
                 typingSpeed={75}
@@ -105,7 +105,7 @@ export function LoginForm({
                 onChange={(e) => setEmail(e.target.value)}
                 id="email"
                 type="email"
-                placeholder="birdie@example.com"
+                placeholder="contact@kushawn.com"
                 required
               />
             </div>

@@ -15,6 +15,8 @@ import {
   Pause,
 } from 'lucide-react';
 import BirdieLogo1 from '../Images/cropped.png';
+import KushawnLogo from '../Images/kushawn-logo.png';
+import KushawnPhoto from '../Images/kushawn-toronto.png';
 import { NavLink, useNavigate } from 'react-router';
 import { usePlayer } from '@/contexts/PlayerContext';
 import StudioVideo from '/Videos/music-studio.mp4';
@@ -68,13 +70,12 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
   const [pendingDownload, setPendingDownload] = useState<Track | null>(null);
 
   const placeholders = [
-    'Larry June Type Beat?',
-    'Payroll Giovanni Type Beat?',
-    'Playboi Carti Type Beat?',
-    'Key Glock Type Beat?',
-    'Drake Type Beat?',
-    'Gunna Type Beat?',
-    'G-Funk?',
+    'Acoustic Guitar Instrumental?',
+    'Piano Instrumental?',
+    'Tabla Instrumental?',
+    'Search by mood or vibe...',
+    'Chill instrumental?',
+    'Upbeat instrumental?',
   ];
 
   // Handle pagination and search
@@ -139,7 +140,7 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
 
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `${track.artist} Type Beat - ${track.title} [Prod. Birdie Bands].mp3`;
+      link.download = `${track.artist} Type Beat - ${track.title} [Prod. KUSHAWN].mp3`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -201,7 +202,7 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
   const handleShareClick = (track: Track) => {
     const shareUrl = `${window.location.origin}/beat?beatId=${track.id}`; // Use _id for the URL
 
-    const shareText = `Check out this beat: "${track.title}" by ${track.artist} on Birdie Bands!`;
+    const shareText = `Check out this beat: "${track.title}" by ${track.artist} on KUSHAWN!`;
     if (navigator.share) {
       navigator
         .share({
@@ -547,24 +548,25 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
       {/* SEO Meta Tags */}
 
       <div
-        className={` bg-black py-16 flex flex-col justify-center items-center px-4 relative overflow-hidden`}
+        className={`bg-black py-16 flex flex-col justify-center items-center px-4 relative overflow-hidden min-h-[60vh]`}
       >
-        <video
-          autoPlay
-          loop
-          muted
-          className="hidden md:block !pointer-events-none absolute h-screen lg:h-auto scale-200 md:scale-140 z-0 opacity-25 dark:opacity-10"
-          src={StudioVideo}
-        ></video>
+        {/* Toronto photo background */}
+        <img
+          src={KushawnPhoto}
+          alt="KUSHAWN"
+          className="!pointer-events-none absolute inset-0 w-full h-full object-cover object-top z-0 opacity-30"
+        />
+        {/* Dark gradient overlay for readability */}
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80" />
         <motion.div
           initial={{ y: -100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 1.0, ease: 'easeOut', delay: 0.3 }}
         >
           <img
-            className="max-sm:w-[12rem] w-xs mb-5 sm:mb-10 z-[50] relative !pointer-events-none [@media(max-height:745px)]:max-w-24"
-            src={BirdieLogo1}
-            alt="Birdie Logo"
+            className="max-sm:w-[14rem] w-[18rem] mb-5 sm:mb-10 z-[50] relative !pointer-events-none drop-shadow-[0_2px_16px_rgba(0,0,0,0.8)] [@media(max-height:745px)]:max-w-24"
+            src={KushawnLogo}
+            alt="KUSHAWN Logo"
             loading="lazy"
           />
         </motion.div>
@@ -572,6 +574,12 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
           {/* <p className="mb-10 sm:mb-2 font-medium text-sm text-center sm:text-lg text-white ">
             Search Beats Here
           </p> */}
+          <p className="text-xs font-semibold tracking-[0.2em] uppercase text-green-400 mb-3 text-center z-10 relative">
+            Multi-Instrument Musician
+          </p>
+          <p className="font-light text-white/70 text-center text-sm sm:text-base italic mb-6 z-10 relative" style={{ fontFamily: "'Playfair Display', serif" }}>
+            Music as a vehicle for healing and transcendence
+          </p>
           <SplitText
             text="Search Beats Here"
             className="mb-10 sm:mb-2 font-medium text-sm text-center sm:text-lg text-white [@media(max-height:745px)]:text-xs"

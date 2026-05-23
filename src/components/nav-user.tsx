@@ -53,7 +53,7 @@ export function NavUser({
                 <AvatarFallback className="rounded-lg">B</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">Birdie Bands</span>
+                <span className="truncate font-medium">KUSHAWN</span>
                 <span className="text-muted-foreground truncate text-xs">
                   {user.email}
                 </span>
@@ -74,7 +74,7 @@ export function NavUser({
                   <AvatarFallback className="rounded-lg">B</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">Birdie Bands</span>
+                  <span className="truncate font-medium">KUSHAWN</span>
                   <span className="text-muted-foreground truncate text-xs">
                     {user.email}
                   </span>

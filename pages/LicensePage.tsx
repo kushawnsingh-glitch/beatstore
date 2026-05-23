@@ -4,11 +4,11 @@ import Licenses from '../src/components/Licenses';
 const LicensePage = () => {
   const baseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
   const canonicalUrl = `${baseUrl}/licenses`;
-  const title = 'Licenses | Birdie Bands';
+  const title = 'Licenses | KUSHAWN';
   const description =
-    'Explore licensing options for type beats and instrumentals at Birdie Bands. Choose the right license for your music production needs.';
+    'Explore licensing options for type beats and instrumentals at KUSHAWN. Choose the right license for your music production needs.';
   const keywords =
-    'music licenses, type beats, instrumentals, music production, Birdie Bands';
+    'music licenses, type beats, instrumentals, music production, KUSHAWN';
   return (
     <>
       <Helmet>
@@ -21,7 +21,7 @@ const LicensePage = () => {
         <meta property="og:image" content={BirdieLogo} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Birdie Bands" />
+        <meta property="og:site_name" content="KUSHAWN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
@@ -35,7 +35,7 @@ const LicensePage = () => {
             description: description,
             publisher: {
               '@type': 'Organization',
-              name: 'Birdie Bands',
+              name: 'KUSHAWN',
               logo: {
                 '@type': 'ImageObject',
                 url: BirdieLogo,

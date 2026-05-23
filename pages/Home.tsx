@@ -3,114 +3,134 @@ import FAQS from '@/components/FAQS';
 import Licenses from '@/components/Licenses';
 import TrackListing from '@/components/track-listing';
 import { MoveUp } from 'lucide-react';
+import { FaYoutube, FaInstagram } from 'react-icons/fa';
 import BirdieLogo from '../src/Images/cropped.png';
-// import Particles from '@/components/ui/ReactBits/Particles';
-// import Background from '@/components/Background';
-import { Helmet } from 'react-helmet'; // Import React Helmet for SEO
+import KushawnPhoto from '../src/Images/kushawn-toronto.png';
+import { Helmet } from 'react-helmet';
 import { useEffect, useState } from 'react';
 import YoutubeSection from '@/components/YouTube';
 import MailerLitePopUp from '../src/components/MailerLitePopup';
-import BeatPackList from '@/components/PacksComponents/BeatPackList';
-// import PackList from '@/components/PackList';
+
 const Home = ({ size }: { size: string }) => {
-  // document.title = `Birdie Bands | Home`;
   const [showButton, setShowButton] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
-      // Calculate scroll position
       const scrollPosition = window.scrollY;
       const windowHeight = window.innerHeight;
       const documentHeight = document.documentElement.scrollHeight;
-
-      // Calculate 90% of the page height
       const ninetyPercentHeight = 0.9 * documentHeight;
-
-      // Show button if scrolled past 90% of the page
       setShowButton(scrollPosition + windowHeight >= ninetyPercentHeight);
     };
-
-    // Add event listener
     window.addEventListener('scroll', handleScroll);
-
-    // Clean up
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // SEO metadata
   const baseUrl = window.location.origin;
   const canonicalUrl = `${baseUrl}/`;
-  const title = 'Birdie Bands | High-Quality Type Beats & Instrumentals';
+  const title = 'KUSHAWN | Premium Instrumentals & Beats';
   const description =
-    'Discover high-quality type beats and instrumentals for music production at Birdie Bands. Download beats, explore licenses, and create your next hit!';
+    'Discover premium instrumentals and beats from KUSHAWN — acoustic guitar, tabla, piano and more. Music as a vehicle for healing and transcendence.';
   const keywords =
-    'type beats, instrumentals, music production, hip hop beats, trap beats, rap beats, beat download, Birdie Bands, gfunk beats, gfunk type beats, g-funk type beats, g-funk type beat, memphis type beats';
-  const imageUrl = BirdieLogo; // Use absolute URL if possible
+    'instrumentals, acoustic guitar instrumental, tabla instrumental, piano instrumental, music production, KUSHAWN, healing music, transcendence';
+  const imageUrl = BirdieLogo;
+
   return (
     <div className="overflow-x-hidden flex flex-col gap-64 relative">
-      {/* React Helmet for SEO */}
       <Helmet>
         <title>{title}</title>
         <meta name="description" content={description} />
         <meta name="keywords" content={keywords} />
         <link rel="canonical" href={canonicalUrl} />
-
-        {/* Open Graph for social sharing */}
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={imageUrl} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Birdie Bands" />
-
-        {/* Twitter Card for X */}
+        <meta property="og:site_name" content="KUSHAWN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={imageUrl} />
-
-        {/* Structured Data (JSON-LD) for rich snippets */}
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'WebSite',
             url: canonicalUrl,
-            name: 'Birdie Bands',
-            description: description,
-            publisher: {
-              '@type': 'Organization',
-              name: 'Birdie Bands',
-              logo: {
-                '@type': 'ImageObject',
-                url: imageUrl,
-              },
-            },
-            potentialAction: {
-              '@type': 'SearchAction',
-              target: `${baseUrl}/search?q={search_term_string}`,
-              'query-input': 'required name=search_term_string',
-            },
+            name: 'KUSHAWN',
+            description,
+            publisher: { '@type': 'Organization', name: 'KUSHAWN', logo: { '@type': 'ImageObject', url: imageUrl } },
+            potentialAction: { '@type': 'SearchAction', target: `${baseUrl}/search?q={search_term_string}`, 'query-input': 'required name=search_term_string' },
           })}
         </script>
       </Helmet>
+
       <MailerLitePopUp />
-      <TrackListing
-        limitTrackCount={50}
-        // searchTerm={searchTerm}
-        // setSearchTerm={setSearchTerm}
-      />
-      <BeatPackList isHomePage={true} />
+
+      {/* Beat store */}
+      <TrackListing limitTrackCount={50} />
+
+      {/* Instrumentals section */}
       <Artists size={size} />
-      {/* <PackList /> */}
+
+      {/* Licenses */}
       <Licenses />
-      {/* FAQS */}
-      <div className="flex flex-col justify-center self-center md:min-w-6xl">
+
+      {/* About the Artist */}
+      <section className="max-w-5xl mx-auto px-6 flex flex-col md:flex-row gap-16 items-center">
+        <div className="relative rounded-2xl overflow-hidden shrink-0 w-full md:w-80 aspect-[3/4] shadow-2xl">
+          <img
+            src={KushawnPhoto}
+            alt="KUSHAWN"
+            className="w-full h-full object-cover object-top pointer-events-none"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+        </div>
+        <div className="flex flex-col gap-6">
+          <span className="section-label">About</span>
+          <h2 className="text-3xl md:text-4xl font-bold" style={{ fontFamily: "'Playfair Display', serif" }}>
+            The Artist
+          </h2>
+          <p className="text-foreground/70 text-lg leading-relaxed">
+            Kushawn is a multi-instrument musician whose music transcends genre and invites listeners into a world built from rhythm, melody, and raw expression. With a deep command of guitar, tabla, piano, and more — every recording is a unique sonic journey.
+          </p>
+          <p className="text-foreground/70 text-lg leading-relaxed italic" style={{ fontFamily: "'Playfair Display', serif" }}>
+            "Music as a vehicle for healing and transcendence"
+          </p>
+          <div className="flex gap-3 flex-wrap mt-2">
+            <a
+              href="https://www.youtube.com/kushawn"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium border border-white/10 bg-red-500/10 hover:bg-red-500/20 hover:border-red-500/30 !text-foreground !transition-all !duration-300"
+            >
+              <FaYoutube className="text-red-500" />
+              youtube.com/kushawn
+            </a>
+            <a
+              href="https://www.instagram.com/kushawn"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium border border-white/10 bg-purple-500/10 hover:bg-purple-500/20 hover:border-purple-500/30 !text-foreground !transition-all !duration-300"
+            >
+              <FaInstagram className="text-pink-400" />
+              instagram.com/kushawn
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Follow the Journey */}
+      <YoutubeSection />
+
+      {/* FAQs */}
+      <div className="flex flex-col justify-center self-center md:min-w-6xl px-6">
         <div className="z-50 flex flex-col gap-12">
           <h2 className={`font-bold ${size}`}>FAQS</h2>
           <FAQS />
         </div>
       </div>
-      {/* <Contact fullscreen={false} /> */}
+
       {showButton && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -119,7 +139,6 @@ const Home = ({ size }: { size: string }) => {
           <MoveUp />
         </button>
       )}
-      <YoutubeSection />
     </div>
   );
 };

@@ -6,11 +6,11 @@ import { motion } from 'framer-motion';
 const FaqsPage = () => {
   const baseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
   const canonicalUrl = `${baseUrl}/faqs`;
-  const title = 'FAQs | Birdie Bands';
+  const title = 'FAQs | KUSHAWN';
   const description =
-    'Frequently asked questions about Birdie Bands downloadable beats, instrumentals, licensing, and music production.';
+    'Frequently asked questions about KUSHAWN downloadable beats, instrumentals, licensing, and music production.';
   const keywords =
-    'FAQs, frequently asked questions, music production, type beats, instrumentals, Birdie Bands, beat licensing';
+    'FAQs, frequently asked questions, music production, type beats, instrumentals, KUSHAWN, beat licensing';
   return (
     <>
       <Helmet>
@@ -23,7 +23,7 @@ const FaqsPage = () => {
         <meta property="og:image" content={BirdieLogo} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Birdie Bands" />
+        <meta property="og:site_name" content="KUSHAWN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
@@ -37,7 +37,7 @@ const FaqsPage = () => {
             description: description,
             publisher: {
               '@type': 'Organization',
-              name: 'Birdie Bands',
+              name: 'KUSHAWN',
               logo: {
                 '@type': 'ImageObject',
                 url: BirdieLogo,

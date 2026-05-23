@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import BirdieBandsBlogAvatar from '../src/Images/BirdieBands-Brand-Logo-Transparent.png';
 const defaultPost = {
   title: 'Designing websites faster with shadcn/ui',
-  authorName: 'Birdie Bands',
+  authorName: 'KUSHAWN',
   image: 'https://cdn.mos.cms.futurecdn.net/C8AovEYFC229RwpHxmWSCb-1200-80.jpg',
   pubDate: new Date(),
   description:

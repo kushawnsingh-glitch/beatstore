@@ -103,7 +103,7 @@ const FAQS = () => {
         <AccordionContent className="flex flex-col gap-4 text-start pl-6 max-sm:pl-6">
           <p>
             You must credit the producer in all media formats where your song
-            appears. Use the format: <strong>"Produced by Birdie Bands"</strong>
+            appears. Use the format: <strong>"Produced by KUSHAWN"</strong>
             .
           </p>
         </AccordionContent>

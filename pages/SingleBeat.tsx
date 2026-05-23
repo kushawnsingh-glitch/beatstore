@@ -134,7 +134,7 @@ export default function SingleBeatPage() {
             ...data,
             id: data._id,
           });
-          document.title = `Birdie Bands - ${data.title}`;
+          document.title = `KUSHAWN - ${data.title}`;
 
           // <!-- Event snippet for Single Beat View conversion page -->
           if (window.gtag) {
@@ -253,7 +253,7 @@ export default function SingleBeatPage() {
 
   //     const link = document.createElement('a');
   //     link.href = downloadUrl;
-  //     link.download = `${beat.artist} Type Beat - ${beat.title} [Prod. Birdie Bands].mp3`;
+  //     link.download = `${beat.artist} Type Beat - ${beat.title} [Prod. KUSHAWN].mp3`;
   //     document.body.appendChild(link);
   //     link.click();
   //     document.body.removeChild(link);
@@ -286,7 +286,7 @@ export default function SingleBeatPage() {
 
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `${beat.artist} Type Beat - ${beat.title} [Prod. Birdie Bands].mp3`;
+      link.download = `${beat.artist} Type Beat - ${beat.title} [Prod. KUSHAWN].mp3`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -311,7 +311,7 @@ export default function SingleBeatPage() {
 
   const handleShareClick = (beat: Track) => {
     const shareUrl = `${window.location.origin}/beat?beatId=${beat.id}`; // Use _id for the URL
-    const shareText = `Check out this beat: "${beat.title}" by ${beat.artist} on Birdie Bands!`;
+    const shareText = `Check out this beat: "${beat.title}" by ${beat.artist} on KUSHAWN!`;
 
     if (navigator.share) {
       navigator
@@ -531,8 +531,8 @@ export default function SingleBeatPage() {
   const canonicalUrl = `${baseUrl}/beat?beatId=${beat?.id || ''}`;
   const imageUrl = beat?.s3_image_url || BirdieLogo; // Use absolute if possible; prepend base if relative
   const description = beat
-    ? `Download "${beat.title}" - a ${beat.artist} type beat. BPM: ${beat.bpm}, Key: ${beat.key}, Duration: ${beat.duration}. High-quality instrumental for music production on Birdie Bands.`
-    : 'Discover high-quality type beats on Birdie Bands.';
+    ? `Download "${beat.title}" - a ${beat.artist} type beat. BPM: ${beat.bpm}, Key: ${beat.key}, Duration: ${beat.duration}. High-quality instrumental for music production on KUSHAWN.`
+    : 'Discover high-quality type beats on KUSHAWN.';
   const keywords = beat?.tags
     ? [
         ...beat.tags,
@@ -545,8 +545,8 @@ export default function SingleBeatPage() {
       ].join(', ')
     : 'type beat, instrumental, music production, beat download';
   const title = beat
-    ? `${beat.title} - ${beat.artist} Type Beat | Birdie Bands`
-    : 'Birdie Bands - Type Beats';
+    ? `${beat.title} - ${beat.artist} Type Beat | KUSHAWN`
+    : 'KUSHAWN - Type Beats';
 
   return (
     <div className="z-50 relative max-w-6xl mx-auto px-4 py-16 min-h-[60vh]">
@@ -563,7 +563,7 @@ export default function SingleBeatPage() {
         <meta property="og:image" content={imageUrl} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="music.song" />
-        <meta property="og:site_name" content="Birdie Bands" />
+        <meta property="og:site_name" content="KUSHAWN" />
 
         {/* Twitter Card for X (formerly Twitter) */}
         <meta name="twitter:card" content="summary_large_image" />

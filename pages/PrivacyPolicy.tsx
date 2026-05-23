@@ -9,10 +9,10 @@ const PrivacyPolicy = () => {
       transition={{ duration: 0.5 }}
     >
       <Helmet>
-        <title>Privacy Policy | Birdie Bands</title>
+        <title>Privacy Policy | KUSHAWN</title>
         <meta
           name="description"
-          content="Read the Privacy Policy for Birdie Bands to understand how we handle your data and protect your privacy."
+          content="Read the Privacy Policy for KUSHAWN to understand how we handle your data and protect your privacy."
         />
         <link
           rel="canonical"
@@ -22,7 +22,7 @@ const PrivacyPolicy = () => {
       <section className="relative z-50 max-w-4xl mx-auto  py-64 px-6 dark:text-white flex flex-col items-center justify-center">
         <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
         <article className="whitespace-pre-wrap leading-relaxed text-lg">
-          Birdie Bands respects your privacy. We collect personal information
+          KUSHAWN respects your privacy. We collect personal information
           such as your name, email, shipping address, and purchase history to
           fulfill orders, provide customer support, and improve your experience.
           <br />

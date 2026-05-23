@@ -7,11 +7,11 @@ import BirdieLogo from '../src/Images/cropped.png';
 const RefundPolicy: React.FC = () => {
   const baseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
   const canonicalUrl = `${baseUrl}/refund-policy`;
-  const title = 'Refund Policy | Birdie Bands';
+  const title = 'Refund Policy | KUSHAWN';
   const description =
-    'Understand Birdie Bands’ refund policy for downloadable digital products like type beats and instrumentals. Learn about exceptions for refunds.';
+    'Understand KUSHAWN’ refund policy for downloadable digital products like type beats and instrumentals. Learn about exceptions for refunds.';
   const keywords =
-    'refund policy, music production, type beats, digital products, Birdie Bands';
+    'refund policy, music production, type beats, digital products, KUSHAWN';
   return (
     <>
       <Helmet>
@@ -24,7 +24,7 @@ const RefundPolicy: React.FC = () => {
         <meta property="og:image" content={BirdieLogo} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Birdie Bands" />
+        <meta property="og:site_name" content="KUSHAWN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
@@ -38,7 +38,7 @@ const RefundPolicy: React.FC = () => {
             description: description,
             publisher: {
               '@type': 'Organization',
-              name: 'Birdie Bands',
+              name: 'KUSHAWN',
               logo: {
                 '@type': 'ImageObject',
                 url: BirdieLogo,
@@ -59,7 +59,7 @@ const RefundPolicy: React.FC = () => {
             <p className="mb-4 dark:text-white">
               <strong className="dark:text-white">All sales are final.</strong>
               <br />
-              Birdie Bands offers{' '}
+              KUSHAWN offers{' '}
               <strong>downloadable digital products only</strong>—including beat
               packs, stem kits, and instrumentals. These goods are delivered
               electronically and cannot be returned, so we do{' '}

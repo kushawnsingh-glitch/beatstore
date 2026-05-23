@@ -29,14 +29,14 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import BirdieBandsAvatar from '@/Images/cropped.png';
+import KushawnLogo from '@/Images/kushawn-logo.png';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const data = {
   user: {
-    name: 'Birdie Bands',
-    email: 'dev@birdiebands.com',
-    avatar: `${BirdieBandsAvatar}`,
+    name: 'KUSHAWN',
+    email: 'contact@kushawn.com',
+    avatar: `${KushawnLogo}`,
   },
   navMain: [
     {
@@ -176,12 +176,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <Link to="/">
                 <Avatar className="h-5 w-5 rounded-lg">
-                  <AvatarImage src={BirdieBandsAvatar} alt={`Birdie Bands`} />
+                  <AvatarImage src={KushawnLogo} alt={`KUSHAWN`} />
                   <AvatarFallback className="rounded-lg">B</AvatarFallback>
                 </Avatar>
                 {/* <IconInnerShadowTop className="!size-5 dark:!text-foreground" /> */}
                 <span className="text-base font-semibold !text-foreground dark:!text-foreground">
-                  Birdie Bands
+                  KUSHAWN
                 </span>
               </Link>
             </SidebarMenuButton>

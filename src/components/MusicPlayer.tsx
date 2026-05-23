@@ -50,8 +50,8 @@ const MusicPlayer = () => {
   // Update the media session
   useEffect(() => {
     let artistName = currentTrack?.artist;
-    if (artistName === 'Birdie Bands') {
-      artistName = 'Birdie Bands Sample Pack';
+    if (artistName === 'KUSHAWN') {
+      artistName = 'KUSHAWN Sample Pack';
     } else {
       artistName = `${artistName} Type Beat`;
     }
@@ -62,7 +62,7 @@ const MusicPlayer = () => {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: currentTrack.title || 'Unknown Track',
         artist: `${artistName || 'Unknown Artist'}`,
-        album: 'Birdie Bands',
+        album: 'KUSHAWN',
         artwork: [
           {
             src:

@@ -85,7 +85,7 @@ export default function SingleBeatPack() {
             ...data,
             id: data._id,
           });
-          document.title = `Birdie Bands - ${data.title}`;
+          document.title = `KUSHAWN - ${data.title}`;
           // --- GOOGLE ANALYTICS 4 (GA4) E-COMMERCE TRACKING START: view_item ---
           if (window.gtag) {
             window.gtag('event', 'view_item', {
@@ -97,7 +97,7 @@ export default function SingleBeatPack() {
                 {
                   item_id: data._id.toString(),
                   item_name: data.title,
-                  item_brand: 'Birdie Bands', // Or your producer name
+                  item_brand: 'KUSHAWN', // Or your producer name
                   // Add the price if available in the pack data
                   price: data.price ? data.price : undefined,
                   // Set category to clearly identify it as a Pack
@@ -231,7 +231,7 @@ export default function SingleBeatPack() {
   const imageUrl = pack?.s3_image_url || BirdieLogo; // Use absolute if possible; prepend base if relative
   const description = pack
     ? `Download "${pack.title}". High-quality sample kits, royalty free sound kits, and loops for music production.`
-    : 'Discover high-quality sample packs on Birdie Bands.';
+    : 'Discover high-quality sample packs on KUSHAWN.';
   const keywords = pack?.tags
     ? [
         ...pack.tags,
@@ -244,8 +244,8 @@ export default function SingleBeatPack() {
       ].join(', ')
     : 'type beat, loop pack, sample pack, sound kit, sound kits';
   const title = pack
-    ? `${pack.title} | Birdie Bands`
-    : 'Birdie Bands - Sample Pack';
+    ? `${pack.title} | KUSHAWN`
+    : 'KUSHAWN - Sample Pack';
   return (
     <>
       <Helmet>
@@ -260,7 +260,7 @@ export default function SingleBeatPack() {
         <meta property="og:image" content={imageUrl} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="music.song" />
-        <meta property="og:site_name" content="Birdie Bands" />
+        <meta property="og:site_name" content="KUSHAWN" />
 
         {/* Twitter Card for X (formerly Twitter) */}
         <meta name="twitter:card" content="summary_large_image" />
@@ -277,7 +277,7 @@ export default function SingleBeatPack() {
               name: pack.title,
               byArtist: {
                 '@type': 'Person',
-                name: 'Birdie Bands',
+                name: 'KUSHAWN',
               },
               image: imageUrl,
               url: canonicalUrl,

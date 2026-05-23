@@ -6,11 +6,11 @@ import { NavLink } from 'react-router-dom';
 const TermsOfUse = () => {
   const baseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
   const canonicalUrl = `${baseUrl}/terms-of-use`;
-  const title = 'Terms of Use | Birdie Bands';
+  const title = 'Terms of Use | KUSHAWN';
   const description =
-    'Review the Terms of Use for Birdie Bands, outlining the lawful use of our downloadable beats and instrumentals for music production.';
+    'Review the Terms of Use for KUSHAWN, outlining the lawful use of our downloadable beats and instrumentals for music production.';
   const keywords =
-    'terms of use, music production, type beats, instrumentals, Birdie Bands';
+    'terms of use, music production, type beats, instrumentals, KUSHAWN';
   return (
     <>
       <Helmet>
@@ -23,7 +23,7 @@ const TermsOfUse = () => {
         <meta property="og:image" content={BirdieLogo} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Birdie Bands" />
+        <meta property="og:site_name" content="KUSHAWN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
@@ -37,7 +37,7 @@ const TermsOfUse = () => {
             description: description,
             publisher: {
               '@type': 'Organization',
-              name: 'Birdie Bands',
+              name: 'KUSHAWN',
               logo: {
                 '@type': 'ImageObject',
                 url: BirdieLogo,
@@ -55,7 +55,7 @@ const TermsOfUse = () => {
         <section className="relative z-50 max-w-4xl mx-auto py-16 px-6 dark:text-white flex flex-col items-center justify-center">
           <h1 className="text-3xl font-bold mb-6">Terms of Use</h1>
           <article className="!z-[499] whitespace-pre-wrap leading-relaxed text-lg">
-            By accessing <strong>Birdie Bands</strong>, including our website,
+            By accessing <strong>KUSHAWN</strong>, including our website,
             products, and newsletter at{' '}
             <NavLink to="/newsletter">www.birdiebands.com/newsletter</NavLink>,
             you agree to use our products and services lawfully. Beats purchased
@@ -71,7 +71,7 @@ const TermsOfUse = () => {
             content, or availability without notice.
             <br />
             <br />
-            <strong>Birdie Bands</strong> is not liable for misuse of our
+            <strong>KUSHAWN</strong> is not liable for misuse of our
             products, website, or newsletter content. We strive for quality, but
             your use is at your own risk.
             <br />

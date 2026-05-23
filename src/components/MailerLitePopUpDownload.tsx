@@ -107,7 +107,7 @@ const MailerLitePopUpDownload = ({
             }`}
           >
             <div className="flex items-center justify-center">
-              Exclusive Access to Birdie Bands' Latest Releases{' '}
+              Exclusive Access to KUSHAWN' Latest Releases{' '}
               <picture className="pointer-events-none">
                 <source
                   srcSet="https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.webp"
@@ -172,7 +172,7 @@ const MailerLitePopUpDownload = ({
                 theme === 'dark' ? 'text-gray-300 ' : 'text-gray-600 '
               }`}
             >
-              I agree to receive newsletters and updates from Birdie Bands
+              I agree to receive newsletters and updates from KUSHAWN
             </label>
           </div>
           <label

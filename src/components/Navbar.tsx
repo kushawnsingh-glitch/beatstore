@@ -7,8 +7,7 @@ import { NavLink, useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'; // Shadcn Avatar component
 // import GoogleTranslate from './GoogleTranslate';
-import BirdieLogo from '../../src/Images/logo.png';
-import BirdieLogo1 from '../../src/Images/1LOGO-CROP-NOSTARS.png';
+import KushawnLogo from '../../src/Images/kushawn-logo.png';
 import BirdieAvatarLogo from '../../src/Images/cropped.png';
 import { ThemeToggle } from './ThemeToggle';
 import CartModal from './cart-modal';
@@ -45,7 +44,7 @@ const Navbar = () => {
             className="!bg-transparent font-medium bg-gradient-to-l-"
           >
             <button className="min-w-3xl !flex items-center justify-center   !bg-transparent hover:!bg-transparent  !p-0 hover:!p-0 !m-0 hover:!m-0">
-              25% OFF Code: BIRDIE25{' '}
+              25% OFF Code: KUSHAWN25{' '}
               <picture className="pointer-events-none">
                 <source
                   srcSet="https://fonts.gstatic.com/s/e/notoemoji/latest/1f525/512.webp"
@@ -98,22 +97,10 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between px-4 py-4">
           {/* Logo */}
           <NavLink to="/" className="flex items-center">
-            {/* <Image
-              src={BirdieLogo}
-              alt="Birdie Bands Logo"
-              width={200}
-              height={200}
-            /> */}
-            {/* <img className="w-48" src={BirdieLogo} alt="Birdie Bands Logo" /> */}
             <img
-              className="w-32 pointer !pointer-events-none"
-              src={BirdieLogo}
-              alt="Birdie Bands Logo"
-            />
-            <img
-              className="w-12 rounded-full !pointer-events-none"
-              src={BirdieLogo1}
-              alt="Birdie Bands Logo"
+              className="w-48 pointer !pointer-events-none"
+              src={KushawnLogo}
+              alt="KUSHAWN Logo"
             />
           </NavLink>
 
@@ -161,42 +148,6 @@ const Navbar = () => {
                 Sound Kits
               </li>
             </NavLink> */}
-            {/* <NavLink
-              to="/about"
-              className="!bg-transparent hover:!border-transparent"
-            >
-              <li className="text-foreground hover:text-green-400 transition-colors">
-                About
-              </li>
-            </NavLink> */}
-            <NavLink
-              to="/blogs"
-              className={({ isActive }) =>
-                `!bg-transparent hover:!border-transparent ${
-                  isActive
-                    ? '!text-green-400 border-b-2 border-black dark:border-white/55 drop-shadow-[0_0_4px_white]'
-                    : 'text-foreground'
-                }`
-              }
-            >
-              <li className="text-foreground hover:text-green-400 transition-colors">
-                Blog
-              </li>
-            </NavLink>
-            <NavLink
-              to="/contact"
-              className={({ isActive }) =>
-                `!bg-transparent hover:!border-transparent ${
-                  isActive
-                    ? '!text-green-400 border-b-2 border-black dark:border-white/55 drop-shadow-[0_0_4px_white]'
-                    : 'text-foreground'
-                }`
-              }
-            >
-              <li className="text-foreground hover:text-green-400 transition-colors">
-                Contact
-              </li>
-            </NavLink>
             {/* <GoogleTranslate /> */}
           </div>
 
@@ -211,7 +162,7 @@ const Navbar = () => {
                   <Avatar className="h-8 w-8 cursor-pointer">
                     <AvatarImage
                       src={BirdieAvatarLogo}
-                      alt={`Birdie Avatar Image`}
+                      alt={`KUSHAWN Avatar`}
                     />
                     <AvatarFallback>
                       {user?.email.charAt(0).toUpperCase()}
@@ -279,24 +230,6 @@ const Navbar = () => {
                   >
                     <li className="text-foreground hover:text-green-400 transition-colors text-lg">
                       Beats
-                    </li>
-                  </NavLink>
-                  <NavLink
-                    to="/blogs"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="!bg-transparent hover:!border-transparent"
-                  >
-                    <li className="text-foreground hover:text-green-400 transition-colors text-lg">
-                      Blog
-                    </li>
-                  </NavLink>
-                  <NavLink
-                    to="/contact"
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className="!bg-transparent hover:!border-transparent"
-                  >
-                    <li className="text-foreground hover:text-green-400 transition-colors text-lg">
-                      Contact
                     </li>
                   </NavLink>
                   {isAuthenticated && (

@@ -52,7 +52,7 @@ const Blog7 = ({
       summary:
         "Discover how guitar FX pedals—especially the Flying Auto-Wahwah—sparked my journey into learning guitar. From tone-shaping magic to expressive soundscapes, this post dives into why pedals are more than gear—they're inspiration.",
       label: 'Music & Gear',
-      author: 'Birdie Bands',
+      author: 'KUSHAWN',
       published: 'September 10, 2025',
       url: 'https://shadcnblocks.com',
       image:
@@ -61,7 +61,7 @@ const Blog7 = ({
     },
   ];
   const description =
-    "Explore the world of music production with Birdie Bands. From crafting melodies and layering effects to mixing, mastering, and marketing your beats—this blog dives deep into everything music creators need. Whether you're learning sound design, running ads, or building your beat empire, you'll find tutorials, insights, and inspiration tailored for producers who want to level up.";
+    "Explore the world of music production with KUSHAWN. From crafting melodies and layering effects to mixing, mastering, and marketing your beats—this blog dives deep into everything music creators need. Whether you're learning sound design, running ads, or building your beat empire, you'll find tutorials, insights, and inspiration tailored for producers who want to level up.";
 
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 1000); // 1 seconds
