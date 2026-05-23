@@ -19,7 +19,6 @@ import KushawnLogo from '../Images/kushawn-logo.png';
 import KushawnPhoto from '../Images/kushawn-toronto.png';
 import { NavLink, useNavigate } from 'react-router';
 import { usePlayer } from '@/contexts/PlayerContext';
-import StudioVideo from '/Videos/music-studio.mp4';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'react-router-dom';
 import { useCart } from '@/contexts/cart-context';
