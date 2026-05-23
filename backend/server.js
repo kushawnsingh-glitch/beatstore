@@ -14,8 +14,7 @@ import Stripe from 'stripe';
 import crypto from 'crypto';
 import iso3166 from 'iso-3166-1';
 import fetch from 'node-fetch';
-import emailRouter from './api/email.js';
-import emailTestRouter from './api/emailTest.js';
+// Legacy email routers removed — email is handled directly in this file via Nodemailer
 import beatRoutes from './routes/beat.js';
 
 // ─── Supabase (service role = full DB + Storage access) ──────────────────────
@@ -315,9 +314,7 @@ async function startServer() {
 
 startServer();
 
-// ─── Email ────────────────────────────────────────────────────────────────────
-app.use('/api/email', emailRouter);
-app.use('/api/emailTest', emailTestRouter);
+// Email is handled directly via Nodemailer in the Stripe webhook and PayPal capture handlers above
 
 // ─── MailerLite subscribe ─────────────────────────────────────────────────────
 app.post('/api/mailerlite/subscribe', async (req, res) => {
