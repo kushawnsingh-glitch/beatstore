@@ -29,7 +29,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import KushawnLogo from '@/Images/kushawn-logo.png';
+import KushawnLogo from '@/Images/kushawn-logo.webp';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 const data = {

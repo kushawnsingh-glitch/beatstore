@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import KushawnLogo from '../../Images/kushawn-logo.png';
+import KushawnLogo from '../../Images/kushawn-logo.webp';
 
 export const Logo = () => {
   return (

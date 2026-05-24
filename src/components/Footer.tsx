@@ -1,4 +1,4 @@
-import KushawnLogo from '/src/Images/kushawn-logo.png';
+import KushawnLogo from '/src/Images/kushawn-logo.webp';
 import { FaCcVisa, FaCcMastercard, FaCcPaypal, FaCcStripe, FaYoutube, FaInstagram } from 'react-icons/fa';
 import { NavLink } from 'react-router';
 

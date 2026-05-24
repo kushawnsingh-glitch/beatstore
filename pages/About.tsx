@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
-import KushawnPhoto from '../src/Images/kushawn-toronto.png';
-import KushawnLogo from '../src/Images/kushawn-logo.png';
+import KushawnPhoto from '../src/Images/kushawn-toronto.webp';
+import KushawnLogo from '../src/Images/kushawn-logo.webp';
 import { NavLink } from 'react-router-dom';
 
 const About = () => {

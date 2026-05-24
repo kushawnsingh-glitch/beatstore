@@ -5,7 +5,7 @@ import TrackListing from '@/components/track-listing';
 import { MoveUp } from 'lucide-react';
 import { FaYoutube, FaInstagram } from 'react-icons/fa';
 import KushawnLogo from '../src/Images/kushawn-logo.webp';
-import KushawnPhoto from '../src/Images/kushawn-toronto.png';
+import KushawnPhoto from '../src/Images/kushawn-toronto.webp';
 import { Helmet } from 'react-helmet';
 import { useEffect, useState } from 'react';
 import YoutubeSection from '@/components/YouTube';
