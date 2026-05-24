@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import authorImage from '../Images/kushawn-photo2.jpg';
+import authorImage from '../Images/kushawn-photo2.webp';
 import { Link, useNavigate } from 'react-router-dom';
 import TextType from './ui/ReactBits/TextType ';
 import { IconLogin2 } from '@tabler/icons-react';

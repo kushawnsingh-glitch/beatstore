@@ -2,7 +2,7 @@
 import { motion } from 'framer-motion';
 import TiltedCard from './ui/ReactBits/TitledCard';
 import { useNavigate } from 'react-router-dom';
-import TablaImage from '../Images/tabla.jpg';
+import TablaImage from '../Images/tabla.webp';
 
 const instrumentals = [
   {

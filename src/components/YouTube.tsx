@@ -1,6 +1,6 @@
 import { FaYoutube, FaInstagram } from 'react-icons/fa';
-import KushawnPhoto from '../../src/Images/kushawn-toronto.png';
-import KushawnPhoto2 from '../../src/Images/kushawn-photo2.jpg';
+import KushawnPhoto from '../../src/Images/kushawn-toronto.webp';
+import KushawnPhoto2 from '../../src/Images/kushawn-photo2.webp';
 
 const YoutubeSection = () => {
   return (

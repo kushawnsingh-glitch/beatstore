@@ -7,8 +7,7 @@ import { NavLink, useNavigate } from 'react-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'; // Shadcn Avatar component
 // import GoogleTranslate from './GoogleTranslate';
-import KushawnLogo from '../../src/Images/kushawn-logo.png';
-import BirdieAvatarLogo from '../../src/Images/cropped.png';
+import KushawnLogo from '../../src/Images/kushawn-logo.webp';
 import { ThemeToggle } from './ThemeToggle';
 import CartModal from './cart-modal';
 import { useCart } from '@/contexts/cart-context';
@@ -161,7 +160,7 @@ const Navbar = () => {
                 <DropdownMenuTrigger asChild>
                   <Avatar className="h-8 w-8 cursor-pointer">
                     <AvatarImage
-                      src={BirdieAvatarLogo}
+                      src={KushawnLogo}
                       alt={`KUSHAWN Avatar`}
                     />
                     <AvatarFallback>

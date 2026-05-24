@@ -5,7 +5,7 @@ import { toast } from 'react-hot-toast';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Helmet } from 'react-helmet';
-import BirdieLogo from '../Images/birdie2025-logo.png'; // Adjust path as needed
+import KushawnLogo from '../Images/kushawn-logo.webp';
 import { Link } from 'react-router-dom';
 import { useTheme } from '@/contexts/theme-provider';
 import { Button } from '@/components/ui/button';
@@ -105,14 +105,14 @@ const NewsLetterSignUp = ({ fullscreen }: { fullscreen?: boolean }) => {
         <link rel="canonical" href={canonicalUrl} />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
-        <meta property="og:image" content={BirdieLogo} />
+        <meta property="og:image" content={KushawnLogo} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="KUSHAWN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={BirdieLogo} />
+        <meta name="twitter:image" content={KushawnLogo} />
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',
@@ -125,7 +125,7 @@ const NewsLetterSignUp = ({ fullscreen }: { fullscreen?: boolean }) => {
               name: 'KUSHAWN',
               logo: {
                 '@type': 'ImageObject',
-                url: BirdieLogo,
+                url: KushawnLogo,
               },
             },
           })}

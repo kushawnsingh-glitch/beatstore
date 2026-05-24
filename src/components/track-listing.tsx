@@ -14,9 +14,8 @@ import {
   Share2,
   Pause,
 } from 'lucide-react';
-import BirdieLogo1 from '../Images/cropped.png';
-import KushawnLogo from '../Images/kushawn-logo.png';
-import KushawnPhoto from '../Images/kushawn-toronto.png';
+import KushawnLogo from '../Images/kushawn-logo.webp';
+import KushawnPhoto from '../Images/kushawn-toronto.webp';
 import { NavLink, useNavigate } from 'react-router';
 import { usePlayer } from '@/contexts/PlayerContext';
 import { motion } from 'framer-motion';
@@ -393,7 +392,7 @@ const TrackListing = ({ limitTrackCount }: { limitTrackCount?: number }) => {
             >
               <img
                 className="w-full h-full object-cover"
-                src={track.s3_image_url ? track.s3_image_url : BirdieLogo1}
+                src={track.s3_image_url ? track.s3_image_url : KushawnLogo}
                 alt={track.title}
                 loading="lazy"
               />
