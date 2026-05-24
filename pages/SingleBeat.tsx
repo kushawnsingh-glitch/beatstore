@@ -42,7 +42,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import FadeContent from '@/components/ui/ReactBits/FadeContent';
 import type { Track } from '../src/types';
-import BirdieLogo from '../src/Images/birdie2025-logo.png';
+import KushawnLogo from '../src/Images/kushawn-logo.webp';
 import MailerLitePopUpDownload from '@/components/MailerLitePopUpDownload';
 
 interface Beat {
@@ -529,7 +529,7 @@ export default function SingleBeatPage() {
   // Construct absolute URLs for SEO meta tags (assuming s3_image_url is absolute; adjust if needed)
   const baseUrl = window.location.origin;
   const canonicalUrl = `${baseUrl}/beat?beatId=${beat?.id || ''}`;
-  const imageUrl = beat?.s3_image_url || BirdieLogo; // Use absolute if possible; prepend base if relative
+  const imageUrl = beat?.s3_image_url || KushawnLogo; // Use absolute if possible; prepend base if relative
   const description = beat
     ? `Download "${beat.title}" - a ${beat.artist} type beat. BPM: ${beat.bpm}, Key: ${beat.key}, Duration: ${beat.duration}. High-quality instrumental for music production on KUSHAWN.`
     : 'Discover high-quality type beats on KUSHAWN.';
@@ -540,8 +540,8 @@ export default function SingleBeatPage() {
         'instrumental',
         'music production',
         'beat download',
-        'birdie bands',
-        'birdie type beat',
+        'kushawn',
+        'kushawn type beat',
       ].join(', ')
     : 'type beat, instrumental, music production, beat download';
   const title = beat
@@ -649,7 +649,7 @@ export default function SingleBeatPage() {
             {/* Image Section */}
             <div className="!p-0 w-full md:w-1/3 flex-shrink-0 relative  aspect-square">
               <img
-                src={beat.s3_image_url ? beat.s3_image_url : BirdieLogo}
+                src={beat.s3_image_url ? beat.s3_image_url : KushawnLogo}
                 alt={beat.title}
                 className="w-full h-full object-cover rounded-lg pointer-none: "
                 loading="lazy"

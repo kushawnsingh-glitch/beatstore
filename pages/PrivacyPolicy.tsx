@@ -16,7 +16,7 @@ const PrivacyPolicy = () => {
         />
         <link
           rel="canonical"
-          href="https://www.birdiebands.com/privacy-policy"
+          href="https://kushawn.com/privacy-policy"
         />
       </Helmet>
       <section className="relative z-50 max-w-4xl mx-auto  py-64 px-6 dark:text-white flex flex-col items-center justify-center">

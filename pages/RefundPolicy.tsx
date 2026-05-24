@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Mail } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet';
-import BirdieLogo from '../src/Images/cropped.png';
+import KushawnLogo from '../src/Images/kushawn-logo.webp';
 const RefundPolicy: React.FC = () => {
   const baseUrl = import.meta.env.VITE_APP_BASE_URL || window.location.origin;
   const canonicalUrl = `${baseUrl}/refund-policy`;
@@ -21,14 +21,14 @@ const RefundPolicy: React.FC = () => {
         <link rel="canonical" href={canonicalUrl} />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
-        <meta property="og:image" content={BirdieLogo} />
+        <meta property="og:image" content={KushawnLogo} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="KUSHAWN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={BirdieLogo} />
+        <meta name="twitter:image" content={KushawnLogo} />
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',
@@ -41,7 +41,7 @@ const RefundPolicy: React.FC = () => {
               name: 'KUSHAWN',
               logo: {
                 '@type': 'ImageObject',
-                url: BirdieLogo,
+                url: KushawnLogo,
               },
             },
           })}

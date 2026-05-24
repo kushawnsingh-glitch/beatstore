@@ -5,7 +5,7 @@ import { Lightbulb } from 'lucide-react';
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import BirdieBandsBlogAvatar from '../src/Images/BirdieBands-Brand-Logo-Transparent.png';
+import KushawnLogo from '../src/Images/kushawn-logo.webp';
 const defaultPost = {
   title: 'Designing websites faster with shadcn/ui',
   authorName: 'KUSHAWN',
@@ -13,7 +13,7 @@ const defaultPost = {
   pubDate: new Date(),
   description:
     'A step-by-step guide to building a modern, responsive blog using React and Tailwind CSS.',
-  authorImage: BirdieBandsBlogAvatar,
+  authorImage: KushawnLogo,
 };
 
 interface BlogPostData {

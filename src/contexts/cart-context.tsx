@@ -104,7 +104,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             quantity: 1,
             item_category: item.type,
             item_variant: item.license, // e.g., 'Basic Lease'
-            // Add affiliation if needed, e.g., affiliation: 'BirdieBands'
+            // Add affiliation if needed, e.g., affiliation: 'KUSHAWN'
           },
         ],
       });

@@ -23,7 +23,7 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 
-import BirdieBandsAvatar from '@/Images/cropped.png';
+import KushawnLogo from '@/Images/kushawn-logo.webp';
 import { useNavigate } from 'react-router-dom';
 
 export function NavUser({
@@ -49,7 +49,7 @@ export function NavUser({
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
               <Avatar className="h-8 w-8 rounded-lg grayscale">
-                <AvatarImage src={BirdieBandsAvatar} alt={user.name} />
+                <AvatarImage src={KushawnLogo} alt={user.name} />
                 <AvatarFallback className="rounded-lg">B</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
@@ -70,7 +70,7 @@ export function NavUser({
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">
-                  <AvatarImage src={BirdieBandsAvatar} alt={user.name} />
+                  <AvatarImage src={KushawnLogo} alt={user.name} />
                   <AvatarFallback className="rounded-lg">B</AvatarFallback>
                 </Avatar>
                 <div className="grid flex-1 text-left text-sm leading-tight">

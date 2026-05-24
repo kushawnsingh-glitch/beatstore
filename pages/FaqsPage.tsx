@@ -1,6 +1,6 @@
 import { Helmet } from 'react-helmet';
 import FAQS from '../src/components/FAQS';
-import BirdieLogo from '../src/Images/cropped.png';
+import KushawnLogo from '../src/Images/kushawn-logo.webp';
 import { motion } from 'framer-motion';
 
 const FaqsPage = () => {
@@ -20,14 +20,14 @@ const FaqsPage = () => {
         <link rel="canonical" href={canonicalUrl} />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
-        <meta property="og:image" content={BirdieLogo} />
+        <meta property="og:image" content={KushawnLogo} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="KUSHAWN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={BirdieLogo} />
+        <meta name="twitter:image" content={KushawnLogo} />
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',
@@ -40,7 +40,7 @@ const FaqsPage = () => {
               name: 'KUSHAWN',
               logo: {
                 '@type': 'ImageObject',
-                url: BirdieLogo,
+                url: KushawnLogo,
               },
             },
           })}

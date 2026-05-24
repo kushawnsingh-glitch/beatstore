@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion';
 import { Helmet } from 'react-helmet';
-import BirdieLogo from '../src/Images/cropped.png';
+import KushawnLogo from '../src/Images/kushawn-logo.webp';
 import { NavLink } from 'react-router-dom';
 
 const TermsOfUse = () => {
@@ -20,14 +20,14 @@ const TermsOfUse = () => {
         <link rel="canonical" href={canonicalUrl} />
         <meta property="og:title" content={title} />
         <meta property="og:description" content={description} />
-        <meta property="og:image" content={BirdieLogo} />
+        <meta property="og:image" content={KushawnLogo} />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="KUSHAWN" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={title} />
         <meta name="twitter:description" content={description} />
-        <meta name="twitter:image" content={BirdieLogo} />
+        <meta name="twitter:image" content={KushawnLogo} />
         <script type="application/ld+json">
           {JSON.stringify({
             '@context': 'https://schema.org',
@@ -40,7 +40,7 @@ const TermsOfUse = () => {
               name: 'KUSHAWN',
               logo: {
                 '@type': 'ImageObject',
-                url: BirdieLogo,
+                url: KushawnLogo,
               },
             },
           })}
@@ -57,7 +57,7 @@ const TermsOfUse = () => {
           <article className="!z-[499] whitespace-pre-wrap leading-relaxed text-lg">
             By accessing <strong>KUSHAWN</strong>, including our website,
             products, and newsletter at{' '}
-            <NavLink to="/newsletter">www.birdiebands.com/newsletter</NavLink>,
+            <NavLink to="/newsletter">kushawn.com/newsletter</NavLink>,
             you agree to use our products and services lawfully. Beats purchased
             are for personal or licensed use only—no resale or unauthorized
             distribution.
@@ -88,8 +88,8 @@ const TermsOfUse = () => {
             to comply with applicable laws. Residents of the EU/EEA or
             California have rights to access, correct, or delete their
             data—contact{' '}
-            <a href="mailto:contact@birdiebands.com">
-              contact@birdiebands.com
+            <a href="mailto:contact@kushawn.com">
+              contact@kushawn.com
             </a>{' '}
             to exercise these rights.
             <br />

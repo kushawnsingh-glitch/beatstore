@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import type { Pack } from '../src/types';
 import FadeContent from '@/components/ui/ReactBits/FadeContent';
 import type { Track } from '../src/types';
-import BirdieLogo from '../src/Images/birdie2025-logo.png';
+import KushawnLogo from '../src/Images/kushawn-logo.webp';
 import { useCart } from '@/contexts/cart-context';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from '@/contexts/theme-provider';
@@ -226,7 +226,7 @@ export default function SinglePack() {
   // Construct absolute URLs for SEO meta tags (assuming s3_image_url is absolute; adjust if needed)
   const baseUrl = window.location.origin;
   const canonicalUrl = `${baseUrl}/pack?packId=${pack?.id || ''}`;
-  const imageUrl = pack?.s3_image_url || BirdieLogo; // Use absolute if possible; prepend base if relative
+  const imageUrl = pack?.s3_image_url || KushawnLogo; // Use absolute if possible; prepend base if relative
   const description = pack
     ? `Download "${pack.title}". High-quality sample kits, royalty free sound kits, and loops for music production.`
     : 'Discover high-quality sample packs on KUSHAWN.';
@@ -238,7 +238,7 @@ export default function SinglePack() {
         'sample pack',
         'sound kit',
         'sound kits',
-        'birdie bands',
+        'kushawn',
       ].join(', ')
     : 'type beat, loop pack, sample pack, sound kit, sound kits';
   const title = pack
@@ -334,7 +334,7 @@ export default function SinglePack() {
               {/* Image Section */}
               <button className="!p-0 w-full md:w-1/3 flex-shrink-0 relative  aspect-square">
                 <img
-                  src={pack.s3_image_url ? pack.s3_image_url : BirdieLogo}
+                  src={pack.s3_image_url ? pack.s3_image_url : KushawnLogo}
                   alt={pack.title}
                   className="w-full h-full object-cover rounded-lg pointer-none: "
                   loading="lazy"

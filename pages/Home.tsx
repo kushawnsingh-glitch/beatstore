@@ -4,7 +4,7 @@ import Licenses from '@/components/Licenses';
 import TrackListing from '@/components/track-listing';
 import { MoveUp } from 'lucide-react';
 import { FaYoutube, FaInstagram } from 'react-icons/fa';
-import BirdieLogo from '../src/Images/cropped.png';
+import KushawnLogo from '../src/Images/kushawn-logo.webp';
 import KushawnPhoto from '../src/Images/kushawn-toronto.png';
 import { Helmet } from 'react-helmet';
 import { useEffect, useState } from 'react';
@@ -33,7 +33,7 @@ const Home = ({ size }: { size: string }) => {
     'Discover premium instrumentals and beats from KUSHAWN — acoustic guitar, tabla, piano and more. Music as a vehicle for healing and transcendence.';
   const keywords =
     'instrumentals, acoustic guitar instrumental, tabla instrumental, piano instrumental, music production, KUSHAWN, healing music, transcendence';
-  const imageUrl = BirdieLogo;
+  const imageUrl = KushawnLogo;
 
   return (
     <div className="overflow-x-hidden flex flex-col gap-64 relative">
